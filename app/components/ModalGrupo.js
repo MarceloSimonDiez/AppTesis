@@ -5,7 +5,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import modalStyles from "../styles/modalStyles";
 import CustomButton from "./ButtonAgregar";
 
-const ModalForm = ({ visible, onClose, onAdd }) => {
+const ModalGrupo = ({ visible, onClose, onAdd }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -69,4 +69,4 @@ const ModalForm = ({ visible, onClose, onAdd }) => {
   );
 };
 
-export default ModalForm;
+export default ModalGrupo;

@@ -61,6 +61,24 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     color: "#000",
   },
+  dropdownContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 5,
+    maxHeight: 150, // Limita la altura del dropdown
+    borderWidth: 1,
+    borderColor: "#ccc",
+    marginTop: 5,
+  },
+  dropdownItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  
 });
 
 export default modalStyles;
