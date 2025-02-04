@@ -1,32 +1,10 @@
+//"../styles/globalStyles"
 import { StyleSheet, } from 'react-native';
 import { Dimensions } from 'react-native';
 
 const { height, width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#4E3350', // Asegúrate de aplicar el color de fondo aquí
-      
-    },
-    button: {
-      backgroundColor: '#A153A7',
-      padding: 10,
-      borderRadius: 30,
-      position: 'absolute',
-      alignSelf: 'center',
-      bottom: 20,
-      left: '5%', 
-      right: '5%', 
-      height: 50, // Altura fija para mejor diseño
-      justifyContent: 'center', 
-    },
-    buttonText: {
-      color: '#FFFCFF',
-      fontSize: 20,
-      textAlign: 'center',
-      fontWeight: 'bold',
-    },
     main: {
       fontFamily: 'Roboto_400Regular',
       color: '#fff',
@@ -43,6 +21,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 40,
     padding: 20,
   },
+  //esto es por el momento, deja los botones volver y siguiente en 
+  // parte inferior 
   botonesContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between', // Alinea los botones a los extremos
@@ -52,13 +32,39 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
   },
-  botonesI: {
-    fontSize: 16,
-    color: '#000',
-  },
   botonesD: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white', // Si quieres poner un color
+  },
+  // Estilos para los rectángulos de los grupos
+  grupoContainer: {
+    backgroundColor: "#D09CFA", // Color morado claro
+    borderRadius: 12,          // Bordes redondeados
+    padding: 12,               // Espaciado interno
+    marginBottom: 16,          // Espacio entre grupos
+    flexDirection: "row",      // Para alinear "Grupo" y el contenido en fila
+    alignItems: "center",      // Centrar verticalmente
+  },
+  grupoLabel: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    marginRight: 8,            // Separación del texto "Grupo"
+  },
+  grupoContent: {
+    flex: 1,
+    flexDirection: "row",      // Contenedor en fila para nombre y botón
+    alignItems: "center",
+    backgroundColor: "#FFFFFF", // Fondo blanco
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,           // Bordes redondeados para el contenido
+  },
+  grupoName: {
+    flex: 1,
     fontSize: 16,
-    color: '#000',
+    fontWeight: "bold",
+    color: "#000000",
   },
 }
 );
