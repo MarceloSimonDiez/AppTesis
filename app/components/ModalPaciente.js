@@ -25,6 +25,7 @@ const ModalPaciente = ({ visible, onClose, onAdd, grupos = [] }) => {
     onClose();
   };
 
+  console.log("Grupos en ModalPaciente:", grupos);
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={modalStyles.modalBackground}>

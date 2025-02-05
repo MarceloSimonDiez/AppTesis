@@ -1,18 +1,32 @@
-// components/ModalGrupo.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, TextInput, View, Text, TouchableOpacity, Image } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import modalStyles from "../styles/modalStyles";
 import CustomButton from "./ButtonAgregar";
 
-const ModalGrupo = ({ visible, onClose, onAdd }) => {
+const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [cantidadPacientes, setCantidadPacientes] = useState("");
+
+  // Cuando se edita, llenamos los campos con los datos del grupo
+  useEffect(() => {
+    if (grupoEditando) {
+      setName(grupoEditando.name);
+      setDescription(grupoEditando.description);
+      setCantidadPacientes(grupoEditando.cantidadPacientes?.toString() || "");
+    } else {
+      setName("");
+      setDescription("");
+      setCantidadPacientes("");
+    }
+  }, [grupoEditando]);
 
   const handleAdd = () => {
-    onAdd(name, description);
+    onAdd(name, description, cantidadPacientes);
     setName("");
     setDescription("");
+    setCantidadPacientes("");
     onClose();
   };
 
@@ -26,17 +40,13 @@ const ModalGrupo = ({ visible, onClose, onAdd }) => {
       <View style={modalStyles.modalBackground}>
         <View style={modalStyles.modalContainer}>
           <View style={modalStyles.modalHeader}>
-            <Text style={modalStyles.modalTitle}>GRUPO</Text>
+            <Text style={modalStyles.modalTitle}>
+              {grupoEditando ? "EDITAR GRUPO" : "AGREGAR GRUPO"}
+            </Text>
             <TouchableOpacity onPress={onClose}>
               <Icon name="close" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
-
-          {/* Aquí estamos ajustando la posición de los campos con marginTop */}
-          <Image
-             // Reemplaza con la ruta de tu imagen
-            style={[modalStyles.image, { marginTop: 0 }]}  // Desplazamos la imagen un poco hacia arriba
-          />
 
           <Text style={modalStyles.label}>Nombre:</Text>
           <View style={modalStyles.inputContainer}>
@@ -62,7 +72,21 @@ const ModalGrupo = ({ visible, onClose, onAdd }) => {
             <Icon name="edit" size={20} color="#888" />
           </View>
 
-          <CustomButton title="AGREGAR" onPress={handleAdd} />
+          {/* Nuevo campo para cantidad de pacientes */}
+          <Text style={modalStyles.label}>Cantidad de Pacientes:</Text>
+          <View style={modalStyles.inputContainer}>
+            <TextInput
+              style={modalStyles.input}
+              placeholder="Ingrese la cantidad"
+              placeholderTextColor="#888"
+              keyboardType="numeric"
+              value={cantidadPacientes}
+              onChangeText={setCantidadPacientes}
+            />
+            <Icon name="people" size={20} color="#888" />
+          </View>
+
+          <CustomButton title={grupoEditando ? "GUARDAR CAMBIOS" : "AGREGAR"} onPress={handleAdd} />
         </View>
       </View>
     </Modal>
