@@ -1,142 +1,118 @@
-// components/ModalForm.js
-import React, { useState } from "react";
-import { Modal, View, Text, TouchableOpacity, FlatList, TextInput } from "react-native";
+import React, { useState, useEffect } from "react";
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import modalStyles from "../styles/modalStyles"; // Importamos los estilos modalStyles
-import CustomButton from "./ButtonAgregar";
+import modalStyles from "../styles/modalStyles";
+import buttonStyles from "../styles/buttonStyles";
 
-const ModalPaciente = ({ visible, onClose, onAdd, grupos = [] }) => {
-  const [name, setName] = useState("");
-  const [age, setAge] = useState("");
-  const [sex, setSex] = useState("");
-  const [weight, setWeight] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [showGroupList, setShowGroupList] = useState(false);
+const ModalPaciente = ({ visible, onClose, onAdd, paciente }) => {
+  const [nombre, setNombre] = useState("");
+  const [edad, setEdad] = useState("");
+  const [sexo, setSexo] = useState("");
+  const [peso, setPeso] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [grupo, setGrupo] = useState("");
 
-  const handleAdd = () => {
-    onAdd(name, age, sex, weight, description, selectedGroup);
-    setName("");
-    setAge("");
-    setSex("");
-    setWeight("");
-    setDescription("");
-    setSelectedGroup(null);
+  useEffect(() => {
+    if (paciente) {
+      setNombre(paciente.nombre || "");
+      setEdad(paciente.edad || "");
+      setSexo(paciente.sexo || "");
+      setPeso(paciente.peso || "");
+      setDescripcion(paciente.descripcion || "");
+      setGrupo(paciente.grupoName || "Sin grupo");
+    }
+  }, [paciente]);
+
+  const handleSave = () => {
+    onAdd({
+      nombre,
+      edad,
+      sexo,
+      peso,
+      descripcion,
+    });
     onClose();
   };
 
-  console.log("Grupos en ModalPaciente:", grupos);
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={modalStyles.modalBackground}>
         <View style={modalStyles.modalContainer}>
           <View style={modalStyles.modalHeader}>
-            <Text style={modalStyles.modalTitle}>PACIENTE</Text>
+            <Text style={modalStyles.modalTitle}>Editar Paciente</Text>
             <TouchableOpacity onPress={onClose}>
               <Icon name="close" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          {/* NOMBRE */}
-          <Text style={modalStyles.label}>Nombre:</Text>
-          <View style={modalStyles.inputContainer}>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Ingrese el nombre"
-              placeholderTextColor="#888"
-              value={name}
-              onChangeText={setName}
-            />
-            <Icon name="person" size={20} color="#888" />
-          </View>
+          <ScrollView style={modalStyles.scrollContainer} contentContainerStyle={{ paddingBottom: 80 }}>
+            <Text style={modalStyles.label}>Grupo:</Text>
+            <View style={modalStyles.inputContainer}>
+              <Text style={modalStyles.input}>{grupo}</Text>
+            </View>
 
-          {/* EDAD */}
-          <Text style={modalStyles.label}>Edad:</Text>
-          <View style={modalStyles.inputContainer}>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Ingrese la edad"
-              placeholderTextColor="#888"
-              keyboardType="numeric"
-              value={age}
-              onChangeText={setAge}
-            />
-            <Icon name="calendar-today" size={20} color="#888" />
-          </View>
-
-          {/* SEXO */}
-          <Text style={modalStyles.label}>Sexo:</Text>
-          <View style={modalStyles.inputContainer}>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Ingrese el sexo"
-              placeholderTextColor="#888"
-              value={sex}
-              onChangeText={setSex}
-            />
-            <Icon name="wc" size={20} color="#888" />
-          </View>
-
-          {/* PESO */}
-          <Text style={modalStyles.label}>Peso (kg):</Text>
-          <View style={modalStyles.inputContainer}>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Ingrese el peso"
-              placeholderTextColor="#888"
-              keyboardType="numeric"
-              value={weight}
-              onChangeText={setWeight}
-            />
-            <Icon name="fitness-center" size={20} color="#888" />
-          </View>
-
-          {/* SELECCIÓN DE GRUPO */}
-          <Text style={modalStyles.label}>Grupo:</Text>
-          <TouchableOpacity style={modalStyles.inputContainer} onPress={() => setShowGroupList(!showGroupList)}>
-            <Text style={[modalStyles.input, { textAlignVertical: "center" }]}>
-              {selectedGroup ? selectedGroup.name : "Selecciona un grupo"}
-            </Text>
-            <Icon name="arrow-drop-down" size={24} color="#888" />
-          </TouchableOpacity>
-
-          {/* LISTA DE GRUPOS - Se muestra si showGroupList es true */}
-          {showGroupList && (
-            <View style={modalStyles.dropdownContainer}>
-              <FlatList
-                data={grupos}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={modalStyles.dropdownItem}
-                    onPress={() => {
-                      setSelectedGroup(item);
-                      setShowGroupList(false);
-                    }}
-                  >
-                    <Text style={modalStyles.dropdownText}>{item.name}</Text>
-                  </TouchableOpacity>
-                )}
+            <Text style={modalStyles.label}>Nombre:</Text>
+            <View style={modalStyles.inputContainer}>
+              <TextInput
+                style={modalStyles.input}
+                value={nombre}
+                onChangeText={setNombre}
+                placeholder="Ingrese nombre"
+                placeholderTextColor="#888"
               />
             </View>
-          )}
 
-          {/* DESCRIPCIÓN */}
-          <Text style={modalStyles.label}>Descripción:</Text>
-          <View style={modalStyles.inputContainer}>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Ingrese la descripción"
-              placeholderTextColor="#888"
-              value={description}
-              onChangeText={setDescription}
-            />
-            <Icon name="edit" size={20} color="#888" />
-          </View>
+            <Text style={modalStyles.label}>Edad:</Text>
+            <View style={modalStyles.inputContainer}>
+              <TextInput
+                style={modalStyles.input}
+                value={edad}
+                onChangeText={setEdad}
+                placeholder="Ingrese edad"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+              />
+            </View>
 
-          {/* BOTÓN DE AGREGAR */}
+            <Text style={modalStyles.label}>Sexo:</Text>
+            <View style={modalStyles.inputContainer}>
+              <TextInput
+                style={modalStyles.input}
+                value={sexo}
+                onChangeText={setSexo}
+                placeholder="Ingrese sexo"
+                placeholderTextColor="#888"
+              />
+            </View>
+
+            <Text style={modalStyles.label}>Peso:</Text>
+            <View style={modalStyles.inputContainer}>
+              <TextInput
+                style={modalStyles.input}
+                value={peso}
+                onChangeText={setPeso}
+                placeholder="Ingrese peso"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Text style={modalStyles.label}>Descripción:</Text>
+            <View style={modalStyles.inputContainer}>
+              <TextInput
+                style={modalStyles.input}
+                value={descripcion}
+                onChangeText={setDescripcion}
+                placeholder="Ingrese descripción"
+                placeholderTextColor="#888"
+              />
+            </View>
+          </ScrollView>
+
           <View style={modalStyles.modalFooter}>
-            <CustomButton title="AGREGAR" onPress={handleAdd} />
+            <TouchableOpacity style={modalStyles.fixedButton} onPress={handleSave}>
+              <Text style={buttonStyles.text}>Guardar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

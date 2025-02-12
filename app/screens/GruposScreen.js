@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, TextInput, Modal } from "react-native";
 import styles from "../styles/globalStyles";
 import ModalForm from "../components/ModalGrupo";
 import CustomButton from "../components/ButtonAgregar";
@@ -11,11 +11,11 @@ const GrupoScreen = ({ navigation }) => {
   const [grupoEditando, setGrupoEditando] = useState(null); // Nuevo estado para edición
 
   useEffect(() => {
-    console.log("Estado inicial de grupos:", grupos);
-  }, []);
+    console.log("Estado de grupos actualizado:", grupos);
+  }, [grupos]);
 
   const handleAddGroup = (name, description, cantidadPacientes) => {
-    if (name.trim() !== "") {
+    if (name.trim() !== "" && !isNaN(cantidadPacientes)) {
       if (grupoEditando) {
         // Si estamos editando, actualizamos el grupo existente
         const gruposActualizados = grupos.map((grupo) =>
@@ -34,6 +34,9 @@ const GrupoScreen = ({ navigation }) => {
         setGrupos((prevGrupos) => [...prevGrupos, nuevoGrupo]);
       }
       setModalVisible(false);
+    } else {
+      // Si la cantidadPacientes no es válida
+      console.error("La cantidad de pacientes debe ser un número válido");
     }
   };
 
@@ -91,7 +94,8 @@ const GrupoScreen = ({ navigation }) => {
           <Text style={styles.botonesI}>VOLVER</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("Paciente")}>
+        {/* Navegación a PacienteScreen pasando los grupos */}
+        <TouchableOpacity onPress={() => navigation.navigate("Paciente", { grupos: grupos })}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text style={styles.botonesD}>CONTINUAR</Text>
             <Icon name="arrow-forward-ios" size={20} color="#fff" />

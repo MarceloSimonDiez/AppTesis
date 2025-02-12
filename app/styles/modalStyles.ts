@@ -5,23 +5,21 @@ const modalStyles = StyleSheet.create({
   modalBackground: {
     backgroundColor: "#873B8C",
     flex: 1,
-    marginTop: 120,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     padding: 20,
+    marginTop: 120,
   },
   modalContainer: {
-    flex: 0.60,
+    flex: 1,
     backgroundColor: "#873B8C",
     borderRadius: 30,
     padding: 20,
     width: "100%",
-    alignItems: "center",
     shadowColor: "#873B8C",
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
     shadowRadius: 100,
-    elevation: 5,
   },
   modalHeader: {
     flexDirection: "row",
@@ -35,10 +33,16 @@ const modalStyles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
   },
-  modalFooter: {
+  scrollContainer: {
+    flex: 1,
     width: "100%",
-    paddingVertical: 60,
-    backgroundColor: "transparent", // Fondo transparente para mayor estilo
+  },
+  modalFooter: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+    alignItems: "center",
   },
   label: {
     color: "#fff",
@@ -61,24 +65,19 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     color: "#000",
   },
-  dropdownContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 5,
-    maxHeight: 150, // Limita la altura del dropdown
-    borderWidth: 1,
-    borderColor: "#ccc",
-    marginTop: 5,
-  },
-  dropdownItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: "#333",
+  fixedButton: {
+    backgroundColor: '#46004B',
+    padding: 12,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
   },
   
 });
+
 
 export default modalStyles;
