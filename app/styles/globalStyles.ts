@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
 },
 
 headerContainerE: {
-    backgroundColor: '#611F85', // Fondo violeta oscuro
+    backgroundColor: '#873B8C', // Fondo violeta oscuro
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -223,14 +223,14 @@ triangleRight: {
 
 //CONTAINER EXTRACCIONES
 extraccionContainerE: {
-  backgroundColor: '#6A008A',
-  borderRadius: 12,
-  padding: 16,
-  marginBottom: 12,
+  backgroundColor: '#873B8C',
+  borderRadius: 20,
+  padding: 15,
+  marginBottom: 14,
   shadowColor: '#000',
   shadowOffset: { width: 0, height: 2 },
   shadowOpacity: 0.2,
-  shadowRadius: 4,
+  shadowRadius: 10,
   elevation: 4,
 },
 
@@ -283,6 +283,109 @@ timerText: {
   fontWeight: "bold",
   fontSize: 16,
 },
+
+modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+modalContainer: {
+  backgroundColor: "#F2D7FF",
+  borderRadius: 20,
+  padding: 20,
+  alignItems: "center",      // Alinea el contenido en el centro
+  justifyContent: "center",  // Opcional si quieres centrar verticalmente
+  width: "80%",              // O un ancho que desees
+},
+modalTitle: {
+  fontSize: 18,
+  fontWeight: "bold",
+  color: "#873B8C", //lo cambie
+  marginBottom: 20,
+},
+modalButton: {
+  backgroundColor: "#873B8C",
+  borderRadius: 10,
+  paddingVertical: 10,
+  paddingHorizontal: 20,
+  marginTop: 20,
+},
+modalButtonText: {
+  fontSize: 16,
+  color: "#fff",
+},
+  // Contenedor principal para el intervalo
+  intervalTimeContainer: {
+    backgroundColor: "#D09CFA", // Lila claro
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    
+    // Para alinear la etiqueta+hora a la izquierda y la X a la derecha
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  // Texto "intervalos de tiempo:"
+  intervalLabelE: {
+    color: "#fff",      // Texto en blanco
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  // Botón blanco donde se muestra la hora
+  intervalTimeButton: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 40,
+    marginLeft: 10,     // Espacio entre la etiqueta y el botón
+  },
+
+  // Texto morado que muestra la hora dentro del botón
+  intervalTimeText: {
+    color: "#873B8C",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  // globalStyles.js (fragmento)
+confirmContainerExtracciones: {
+  backgroundColor: "#873B8C",
+  borderRadius: 12,
+  padding: 12,
+  marginTop: 8,
+  alignItems: "center",
+},
+
+buttonsRowExtracciones: {
+  flexDirection: "row",
+  justifyContent: "space-around",
+  width: "100%",
+  marginTop: 10,
+},
+
+confirmButtonExtracciones: {
+  backgroundColor: "#54055A", // Verde
+  padding: 10,
+  borderRadius: 8,
+  marginHorizontal: 10,
+},
+
+cancelButtonExtracciones: {
+  backgroundColor: "#54055A", // Rojo
+  padding: 10,
+  borderRadius: 8,
+  marginHorizontal: 10,
+},
+muestraText: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "bold",
+  marginBottom: 8,
+},
+
 
 }
 );

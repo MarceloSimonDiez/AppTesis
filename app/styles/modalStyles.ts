@@ -66,17 +66,16 @@ const modalStyles = StyleSheet.create({
     color: "#000",
   },
   fixedButton: {
-    backgroundColor: '#46004B',
-    padding: 12,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  
+  backgroundColor: '#46004B',
+  padding: 12,
+  borderRadius: 30,
+  alignItems: 'center',
+  justifyContent: 'center',
+  position: 'absolute',
+  bottom: 20,
+  left: 20,
+  right: 20,
+},
 });
 
 
