@@ -1,28 +1,34 @@
-// ExtraccionesScreen.js
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import styles from "../styles/globalStyles";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ExtraccionesScreen = ({ route, navigation }) => {
-  const { intervalos, pacientes } = route.params;
 
-  const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
-  const [temporizadores, setTemporizadores] = useState({});
+const ExtraccionesScreen = () => {
+  const router = useRouter();
+  const params = useLocalSearchParams();
 
-  // Al montar, cada paciente recibe su propia copia de intervalos
-  useEffect(() => {
-    const newPatients = pacientes.map((p) => ({
+  // 1) Parseamos los parámetros solo una vez
+  const pacientes = params.pacientes ? JSON.parse(params.pacientes) : [];
+  const intervalos = params.intervalos ? JSON.parse(params.intervalos) : [];
+
+  // 2) Calculamos "patientsWithIntervals" UNA SOLA VEZ al iniciar el estado
+  const [patientsWithIntervals, setPatientsWithIntervals] = useState(() => {
+    return pacientes.map((p) => ({
       ...p,
       intervalos: intervalos.map((i) => ({
         ...i,
         tiempo: { ...i.tiempo },
+        outcome: null,
       })),
     }));
-    setPatientsWithIntervals(newPatients);
-  }, [pacientes, intervalos]);
+  });
 
-  // Maneja el conteo regresivo global
+  const [temporizadores, setTemporizadores] = useState({});
+
+  // 3) Manejo del conteo regresivo global (igual que antes)
   useEffect(() => {
     const intervalId = setInterval(() => {
       setTemporizadores((prev) => {
@@ -33,7 +39,6 @@ const ExtraccionesScreen = ({ route, navigation }) => {
             if (data.tiempo > 0) {
               data.tiempo -= 1;
             } else {
-              // Si se termina el tiempo del intervalo actual, marcar finished
               data.tiempo = 0;
               data.activo = false;
               data.finished = true;
@@ -47,16 +52,15 @@ const ExtraccionesScreen = ({ route, navigation }) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Convierte horas y minutos a segundos
+  // --- Funciones para intervalos y exportar, igual que antes ---
+
   const convertirAHorasMinutos = (hours, minutes) =>
     parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60;
 
-  // Inicia un intervalo específico para un paciente
   const iniciarIntervalo = (idPaciente, intervalIndex) => {
     const paciente = patientsWithIntervals.find((p) => p.id === idPaciente);
     if (!paciente) return;
     if (intervalIndex >= paciente.intervalos.length) {
-      // Si se han terminado todos los intervalos, marca al paciente como finalizado
       setTemporizadores((prev) => ({
         ...prev,
         [idPaciente]: {
@@ -72,7 +76,6 @@ const ExtraccionesScreen = ({ route, navigation }) => {
     const intervaloActual = paciente.intervalos[intervalIndex];
     const { hours, minutes } = intervaloActual.tiempo;
     const totalSegundos = convertirAHorasMinutos(hours, minutes);
-
     setTemporizadores((prev) => ({
       ...prev,
       [idPaciente]: {
@@ -85,44 +88,89 @@ const ExtraccionesScreen = ({ route, navigation }) => {
     }));
   };
 
-  // Activa el temporizador para el primer intervalo
   const activarTemporizador = (idPaciente) => {
     const data = temporizadores[idPaciente];
     if (data?.activo && !data?.finished) return;
     iniciarIntervalo(idPaciente, 0);
   };
 
-  // Avanza al siguiente intervalo
-  const iniciarSiguienteIntervalo = (idPaciente) => {
+  const registrarResultadoIntervalo = (idPaciente, outcome) => {
+    setPatientsWithIntervals((prev) =>
+      prev.map((paciente) => {
+        if (paciente.id === idPaciente) {
+          const currentIndex = temporizadores[idPaciente]?.intervalIndex ?? 0;
+          return {
+            ...paciente,
+            intervalos: paciente.intervalos.map((intervalo, index) => {
+              if (index === currentIndex) {
+                return { ...intervalo, outcome };
+              }
+              return intervalo;
+            }),
+          };
+        }
+        return paciente;
+      })
+    );
+  };
+
+  const iniciarSiguienteIntervalo = (idPaciente, outcome) => {
+    registrarResultadoIntervalo(idPaciente, outcome);
     const data = temporizadores[idPaciente];
     if (!data) return;
     const nextIndex = data.intervalIndex + 1;
     iniciarIntervalo(idPaciente, nextIndex);
   };
 
-  // Renderiza cada paciente
-    const renderPaciente = ({ item: paciente }) => {
+  const exportarMatriz = () => {
+    const cabecera = ["Paciente", ...intervalos.map((i) => `${i.tiempo.hours}:${i.tiempo.minutes}`)];
+    const filas = patientsWithIntervals.map((paciente) => {
+      const fila = [paciente.nombre];
+      paciente.intervalos.forEach((intervalo) => {
+        if (intervalo.outcome !== null && intervalo.outcome !== undefined) {
+          fila.push(intervalo.outcome);
+        } else {
+          fila.push(`${intervalo.tiempo.hours}:${intervalo.tiempo.minutes}`);
+        }
+      });
+      return fila;
+    });
+    const matriz = [cabecera, ...filas];
+    console.log("Matriz exportada:", matriz);
+    const filasComoTexto = matriz.map((fila) => fila.join(" | "));
+    const mensaje = filasComoTexto.join("\n");
+  
+    Alert.alert("Matriz exportada", mensaje, [
+      {
+        text: "OK",
+        onPress: async () => {
+          // Limpia los datos persistidos: modifica las claves según corresponda
+          try {
+            await AsyncStorage.multiRemove(["@grupos", "@pacientes", "@intervalos"]);
+            console.log("Datos persistentes borrados, se inicia un nuevo ciclo.");
+          } catch (error) {
+            console.error("Error al limpiar la persistencia:", error);
+          }
+        },
+      },
+    ]);
+  };
+  
+
+  // 4) Renderizado
+  const renderPaciente = ({ item: paciente }) => {
     const temp = temporizadores[paciente.id];
     const tiempoRestante = temp ? temp.tiempo : 0;
     const minutosRestantes = Math.floor(tiempoRestante / 60);
     const segundosRestantes = tiempoRestante % 60;
-
-    // Calcula el índice real (0-based) desde temp?.intervalIndex
     const currentIndex = temp?.intervalIndex ?? 0;
     const totalIntervals = paciente.intervalos.length;
-
-    // Asegura que el número a mostrar (1-based) no exceda totalIntervals
-    // Si currentIndex >= totalIntervals, mostramos totalIntervals
     const safeDisplayedIndex = Math.min(currentIndex + 1, totalIntervals);
+    const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
 
-// Formatea el texto
-const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
     return (
       <View style={styles.extraccionContainerE}>
-        {/* Mostrar el indicador de muestra en la parte superior */}
         <Text style={styles.muestraText}>{muestraTexto}</Text>
-
-        {/* Fila con la información del paciente */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%" }}>
           <View style={styles.infoContainerE}>
             <Text style={styles.labelE}>Paciente</Text>
@@ -130,15 +178,12 @@ const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
               <Text style={styles.inputTextE}>{paciente.nombre || "Sin nombre"}</Text>
             </View>
           </View>
-
           <View style={styles.infoContainerE}>
             <Text style={styles.labelE}>Grupo</Text>
             <View style={styles.inputBoxE}>
               <Text style={styles.inputTextE}>{paciente.grupoName}</Text>
             </View>
           </View>
-
-          {/* Si el paciente ya terminó todos sus intervalos, muestra el tilde (check) */}
           {temp?.allFinished ? (
             <MaterialCommunityIcons
               name="check-circle-outline"
@@ -147,7 +192,6 @@ const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
               style={styles.iconStyleE}
             />
           ) : (
-            // Si no está activo ni finalizado, muestra el botón de Play
             !temp?.activo &&
             !temp?.finished && (
               <TouchableOpacity onPress={() => activarTemporizador(paciente.id)}>
@@ -161,8 +205,6 @@ const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
             )
           )}
         </View>
-
-        {/* Muestra el temporizador activo */}
         {temp?.activo && !temp?.finished && (
           <View style={styles.timerContainer}>
             <Text style={styles.timerText}>
@@ -172,22 +214,19 @@ const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
             </Text>
           </View>
         )}
-
-        {/* Si terminó el intervalo actual, muestra los botones de confirmación */}
         {temp?.finished && !temp?.allFinished && (
           <View style={styles.confirmContainerExtracciones}>
             <Text style={styles.timerText}>tiempo restante: 00:00</Text>
             <View style={styles.buttonsRowExtracciones}>
               <TouchableOpacity
                 style={styles.confirmButtonExtracciones}
-                onPress={() => iniciarSiguienteIntervalo(paciente.id)}
+                onPress={() => iniciarSiguienteIntervalo(paciente.id, "1")}
               >
                 <MaterialCommunityIcons name="check" size={24} color="#fff" />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.cancelButtonExtracciones}
-                onPress={() => iniciarSiguienteIntervalo(paciente.id)}
+                onPress={() => iniciarSiguienteIntervalo(paciente.id, "0")}
               >
                 <MaterialCommunityIcons name="close" size={24} color="#fff" />
               </TouchableOpacity>
@@ -198,11 +237,25 @@ const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
     );
   };
 
-  // Ordena los pacientes para que los que han terminado todos sus intervalos se muestren al final
+  const allPatientsFinished =
+    patientsWithIntervals.length > 0 &&
+    patientsWithIntervals.every((p) => {
+      const data = temporizadores[p.id];
+      return data ? data.allFinished === true : true;
+    });
+
+  // Ordenamos a conveniencia (igual que antes)
   const sortedPatients = [...patientsWithIntervals].sort((a, b) => {
-    const finishedA = temporizadores[a.id]?.allFinished ? 1 : 0;
-    const finishedB = temporizadores[b.id]?.allFinished ? 1 : 0;
-    return finishedA - finishedB;
+    const dataA = temporizadores[a.id];
+    const dataB = temporizadores[b.id];
+    const finishedA = dataA?.allFinished ? 1 : 0;
+    const finishedB = dataB?.allFinished ? 1 : 0;
+    if (finishedA !== finishedB) {
+      return finishedA - finishedB;
+    }
+    const timeA = dataA?.tiempo ?? Infinity;
+    const timeB = dataB?.tiempo ?? Infinity;
+    return timeA - timeB;
   });
 
   return (
@@ -210,17 +263,26 @@ const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
       <View style={styles.headerContainerE}>
         <Text style={styles.headerText}>Próximas Extracciones</Text>
       </View>
-
       <FlatList
         data={sortedPatients}
         keyExtractor={(item) => item.id}
         renderItem={renderPaciente}
         contentContainerStyle={{ padding: 16 }}
       />
-
+      {allPatientsFinished && (
+        <TouchableOpacity
+          style={{ alignSelf: "center", marginBottom: 16 }}
+          onPress={exportarMatriz}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Exportar Matriz</Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.botonesContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => router.push("esquema")}>
           <Text style={styles.botonesI}>VOLVER</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => console.log("Ir a Exportar")}>
+          <Text style={styles.botonesD}>Ir a Exportar</Text>
         </TouchableOpacity>
       </View>
     </View>

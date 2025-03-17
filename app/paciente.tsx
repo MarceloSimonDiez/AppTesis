@@ -1,18 +1,16 @@
-// app/index.tsx
+// app/paciente.tsx
 import React, { useEffect } from 'react';
-import HomeScreen from '../screens/HomeScreen';
+import PacienteScreen from '../screens/PacienteScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSegments } from 'expo-router';
 
-export default function IndexRoute() {
-  const segments = useSegments();
+export default function PacienteRoute() {
+  const segments = useSegments(); // Por ejemplo: ['grupo']
 
   useEffect(() => {
-    // Se guarda la ruta actual en AsyncStorage (por ejemplo, para persistencia)
     const currentRoute = '/' + segments.join('/');
     AsyncStorage.setItem('@lastRoute', currentRoute).catch(console.error);
   }, [segments]);
 
-  // Aquí se renderiza la pantalla de inicio (HomeScreen)
-  return <HomeScreen />;
+  return <PacienteScreen />;
 }

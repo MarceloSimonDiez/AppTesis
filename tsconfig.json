@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "app/grupo.js", "App.js", "app/navegacion.js"  ]
+, "app/grupo.js", "App.js", "app/navegacion.js", "screens/HomeScreen.js"  ]
 }
