@@ -1,22 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
+import React, { useContext, useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, FlatList, Alert, SafeAreaView } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import styles from "../styles/globalStyles";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GlobalContext } from "../GlobalProvider";
 
 const ExtraccionesScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const {
+    pacientes,
+    intervalos,
+    dataLoaded,
+    setGrupos,
+    setPacientes,
+    setIntervalos,
+  } = useContext(GlobalContext);
 
-  // 1) Parseamos los parámetros solo una vez
-  const pacientes = params.pacientes ? JSON.parse(params.pacientes) : [];
-  const intervalos = params.intervalos ? JSON.parse(params.intervalos) : [];
+  const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
+  const [temporizadores, setTemporizadores] = useState({});
 
-  // 2) Calculamos "patientsWithIntervals" UNA SOLA VEZ al iniciar el estado
-  const [patientsWithIntervals, setPatientsWithIntervals] = useState(() => {
-    return pacientes.map((p) => ({
+  useEffect(() => {
+    const nuevosPacientes = pacientes.map((p) => ({
       ...p,
       intervalos: intervalos.map((i) => ({
         ...i,
@@ -24,11 +29,40 @@ const ExtraccionesScreen = () => {
         outcome: null,
       })),
     }));
-  });
+    setPatientsWithIntervals(nuevosPacientes);
+  }, [pacientes, intervalos]);
 
-  const [temporizadores, setTemporizadores] = useState({});
+  useEffect(() => {
+    const cargarTemporizadores = async () => {
+      const nuevosTimers = {};
 
-  // 3) Manejo del conteo regresivo global (igual que antes)
+      for (const paciente of pacientes) {
+        try {
+          const dataStr = await AsyncStorage.getItem(`temporizador-${paciente.id}`);
+          if (dataStr) {
+            const { startTime, intervalIndex, duration } = JSON.parse(dataStr);
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = Math.max(duration - elapsed, 0);
+
+            nuevosTimers[paciente.id] = {
+              activo: remaining > 0,
+              tiempo: remaining,
+              finished: remaining === 0,
+              allFinished: false,
+              intervalIndex,
+            };
+          }
+        } catch (e) {
+          console.warn("Error cargando temporizador:", e);
+        }
+      }
+
+      setTemporizadores(nuevosTimers);
+    };
+
+    cargarTemporizadores();
+  }, []);
+
   useEffect(() => {
     const intervalId = setInterval(() => {
       setTemporizadores((prev) => {
@@ -48,18 +82,16 @@ const ExtraccionesScreen = () => {
         return nextState;
       });
     }, 1000);
-
     return () => clearInterval(intervalId);
   }, []);
-
-  // --- Funciones para intervalos y exportar, igual que antes ---
 
   const convertirAHorasMinutos = (hours, minutes) =>
     parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60;
 
-  const iniciarIntervalo = (idPaciente, intervalIndex) => {
+  const iniciarIntervalo = async (idPaciente, intervalIndex) => {
     const paciente = patientsWithIntervals.find((p) => p.id === idPaciente);
     if (!paciente) return;
+
     if (intervalIndex >= paciente.intervalos.length) {
       setTemporizadores((prev) => ({
         ...prev,
@@ -73,9 +105,17 @@ const ExtraccionesScreen = () => {
       }));
       return;
     }
+
     const intervaloActual = paciente.intervalos[intervalIndex];
     const { hours, minutes } = intervaloActual.tiempo;
     const totalSegundos = convertirAHorasMinutos(hours, minutes);
+    const startTime = Date.now();
+
+    await AsyncStorage.setItem(
+      `temporizador-${idPaciente}`,
+      JSON.stringify({ startTime, intervalIndex, duration: totalSegundos })
+    );
+
     setTemporizadores((prev) => ({
       ...prev,
       [idPaciente]: {
@@ -101,12 +141,9 @@ const ExtraccionesScreen = () => {
           const currentIndex = temporizadores[idPaciente]?.intervalIndex ?? 0;
           return {
             ...paciente,
-            intervalos: paciente.intervalos.map((intervalo, index) => {
-              if (index === currentIndex) {
-                return { ...intervalo, outcome };
-              }
-              return intervalo;
-            }),
+            intervalos: paciente.intervalos.map((intervalo, index) =>
+              index === currentIndex ? { ...intervalo, outcome } : intervalo
+            ),
           };
         }
         return paciente;
@@ -122,42 +159,45 @@ const ExtraccionesScreen = () => {
     iniciarIntervalo(idPaciente, nextIndex);
   };
 
-  const exportarMatriz = () => {
+  const exportarMatriz = async () => {
     const cabecera = ["Paciente", ...intervalos.map((i) => `${i.tiempo.hours}:${i.tiempo.minutes}`)];
-    const filas = patientsWithIntervals.map((paciente) => {
-      const fila = [paciente.nombre];
-      paciente.intervalos.forEach((intervalo) => {
-        if (intervalo.outcome !== null && intervalo.outcome !== undefined) {
-          fila.push(intervalo.outcome);
-        } else {
-          fila.push(`${intervalo.tiempo.hours}:${intervalo.tiempo.minutes}`);
-        }
+    const filas = patientsWithIntervals.map((p) => {
+      const fila = [p.nombre];
+      p.intervalos.forEach((i) => {
+        fila.push(i.outcome ?? `${i.tiempo.hours}:${i.tiempo.minutes}`);
       });
       return fila;
     });
     const matriz = [cabecera, ...filas];
-    console.log("Matriz exportada:", matriz);
-    const filasComoTexto = matriz.map((fila) => fila.join(" | "));
-    const mensaje = filasComoTexto.join("\n");
-  
-    Alert.alert("Matriz exportada", mensaje, [
+    const texto = matriz.map((fila) => fila.join(" | ")).join("\n");
+
+    Alert.alert("Matriz exportada", texto, [
       {
         text: "OK",
         onPress: async () => {
-          // Limpia los datos persistidos: modifica las claves según corresponda
           try {
-            await AsyncStorage.multiRemove(["@grupos", "@pacientes", "@intervalos"]);
-            console.log("Datos persistentes borrados, se inicia un nuevo ciclo.");
-          } catch (error) {
-            console.error("Error al limpiar la persistencia:", error);
+            await AsyncStorage.multiRemove([
+              "gruposData",
+              "pacientesData",
+              "intervalosData",
+              ...patientsWithIntervals.map((p) => `temporizador-${p.id}`),
+            ]);
+            console.log("✔️ Todos los datos fueron eliminados");
+
+            // Limpiar memoria
+            setGrupos([]);
+            setPacientes([]);
+            setIntervalos([]);
+
+            router.push("/");
+          } catch (err) {
+            console.error("Error al limpiar persistencia:", err);
           }
         },
       },
     ]);
   };
-  
 
-  // 4) Renderizado
   const renderPaciente = ({ item: paciente }) => {
     const temp = temporizadores[paciente.id];
     const tiempoRestante = temp ? temp.tiempo : 0;
@@ -185,35 +225,26 @@ const ExtraccionesScreen = () => {
             </View>
           </View>
           {temp?.allFinished ? (
-            <MaterialCommunityIcons
-              name="check-circle-outline"
-              size={32}
-              color="#fff"
-              style={styles.iconStyleE}
-            />
+            <MaterialCommunityIcons name="check-circle-outline" size={32} color="#fff" />
           ) : (
             !temp?.activo &&
             !temp?.finished && (
               <TouchableOpacity onPress={() => activarTemporizador(paciente.id)}>
-                <MaterialCommunityIcons
-                  name="play-circle-outline"
-                  size={32}
-                  color="#fff"
-                  style={styles.iconStyleE}
-                />
+                <MaterialCommunityIcons name="play-circle-outline" size={32} color="#fff" />
               </TouchableOpacity>
             )
           )}
         </View>
+
         {temp?.activo && !temp?.finished && (
           <View style={styles.timerContainer}>
             <Text style={styles.timerText}>
-              {`tiempo restante: ${minutosRestantes.toString().padStart(2, "0")}:${segundosRestantes
-                .toString()
-                .padStart(2, "0")}`}
+              tiempo restante: {minutosRestantes.toString().padStart(2, "0")}:
+              {segundosRestantes.toString().padStart(2, "0")}
             </Text>
           </View>
         )}
+
         {temp?.finished && !temp?.allFinished && (
           <View style={styles.confirmContainerExtracciones}>
             <Text style={styles.timerText}>tiempo restante: 00:00</Text>
@@ -244,15 +275,12 @@ const ExtraccionesScreen = () => {
       return data ? data.allFinished === true : true;
     });
 
-  // Ordenamos a conveniencia (igual que antes)
   const sortedPatients = [...patientsWithIntervals].sort((a, b) => {
     const dataA = temporizadores[a.id];
     const dataB = temporizadores[b.id];
     const finishedA = dataA?.allFinished ? 1 : 0;
     const finishedB = dataB?.allFinished ? 1 : 0;
-    if (finishedA !== finishedB) {
-      return finishedA - finishedB;
-    }
+    if (finishedA !== finishedB) return finishedA - finishedB;
     const timeA = dataA?.tiempo ?? Infinity;
     const timeB = dataB?.tiempo ?? Infinity;
     return timeA - timeB;
@@ -260,33 +288,36 @@ const ExtraccionesScreen = () => {
 
   return (
     <View style={styles.extraccionesScreenContainer}>
-      <View style={styles.headerContainerE}>
-        <Text style={styles.headerText}>Próximas Extracciones</Text>
-      </View>
+      <SafeAreaView style={{ backgroundColor: "#873B8C" }}>
+        <View style={styles.headerContainerE}>
+          <Text style={styles.headerText}>Próximas Extracciones</Text>
+        </View>
+      </SafeAreaView>
+  
       <FlatList
         data={sortedPatients}
         keyExtractor={(item) => item.id}
         renderItem={renderPaciente}
         contentContainerStyle={{ padding: 16 }}
       />
+  
       {allPatientsFinished && (
-        <TouchableOpacity
-          style={{ alignSelf: "center", marginBottom: 16 }}
-          onPress={exportarMatriz}
-        >
+        <TouchableOpacity style={{ alignSelf: "center", marginBottom: 16 }} onPress={exportarMatriz}>
           <Text style={{ color: "#fff", fontWeight: "bold" }}>Exportar Matriz</Text>
         </TouchableOpacity>
       )}
+  
       <View style={styles.botonesContainer}>
         <TouchableOpacity onPress={() => router.push("esquema")}>
           <Text style={styles.botonesI}>VOLVER</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => console.log("Ir a Exportar")}>
-          <Text style={styles.botonesD}>Ir a Exportar</Text>
+        <TouchableOpacity onPress={exportarMatriz}>
+          <Text style={styles.botonesD}>Terminar</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
+  
 };
 
 export default ExtraccionesScreen;

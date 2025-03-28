@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, View } from 'react-native';
+import { GlobalProvider } from '../GlobalProvider'; // Ajustá la ruta si es necesario
 
 export default function Layout() {
   const router = useRouter();
@@ -36,7 +37,6 @@ export default function Layout() {
     })();
   }, [segments, didNavigate, router]);
 
-
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -45,5 +45,9 @@ export default function Layout() {
     );
   }
 
-  return <Slot />;
+  return (
+    <GlobalProvider>
+      <Slot />
+    </GlobalProvider>
+  );
 }

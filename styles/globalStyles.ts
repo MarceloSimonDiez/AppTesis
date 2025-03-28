@@ -151,11 +151,20 @@ const styles = StyleSheet.create({
 },
 
 headerContainerE: {
-    backgroundColor: '#873B8C', // Fondo violeta oscuro
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  paddingTop: 0,         // 👈 Esto asegura que el texto baje lo suficiente
+  paddingBottom: 12,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#873B8C",
 },
+headerContainerEX: {
+  paddingTop: 32,         // 👈 Esto asegura que el texto baje lo suficiente
+  paddingBottom: 12,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#873B8C",
+},
+
 
 headerText: {
     fontSize: 20,
