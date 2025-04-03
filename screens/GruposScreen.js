@@ -109,8 +109,6 @@ const GrupoScreen = () => {
           onPress={() =>
             router.push({
               pathname: "paciente",
-              // Ahora ya no es necesario pasar los grupos por params,
-              // ya que PacienteScreen los leerá del GlobalContext.
             })
           }
         >

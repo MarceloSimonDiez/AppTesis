@@ -8,8 +8,7 @@ import CustomButton from '../components/ButtonAgregar';
 const HomeScreen = () => {
   const router = useRouter();
   return (
-    <View style={{ flex: 1, backgroundColor: '#4E3350', marginTop: 1 }}>
-      <Text style={styles.main}>HOME</Text>
+    <View style={{ flex: 1, backgroundColor: '#fff', marginTop: 1 }}>
       <CustomButton
         title="INICIAR"
         onPress={() => router.push("grupo")}

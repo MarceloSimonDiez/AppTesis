@@ -64,7 +64,7 @@ const EsquemaScreen = () => {
         data={intervalos}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingBottom: 80, paddingTop: 20}}
       />
       <CustomButton title="AGREGAR" onPress={agregarIntervalo} />
       <Modal visible={modalVisible} transparent animationType="fade">
@@ -89,7 +89,10 @@ const EsquemaScreen = () => {
           <Text style={styles.botonesI}>VOLVER</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push({ pathname: "extracciones" })}>
-          <Text style={styles.botonesD}>CONTINUAR</Text>
+           <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={styles.botonesD}>CONTINUAR</Text>
+              <Icon name="arrow-forward-ios" size={20} color="#fff" />
+            </View>
         </TouchableOpacity>
       </View>
     </View>

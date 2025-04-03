@@ -4,6 +4,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import modalStyles from "../styles/modalStyles";
 import buttonStyles from "../styles/buttonStyles";
 
+
 const ModalPaciente = ({ visible, onClose, onAdd, paciente }) => {
   const [nombre, setNombre] = useState("");
   const [edad, setEdad] = useState("");

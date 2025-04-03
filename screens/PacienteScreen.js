@@ -5,37 +5,38 @@ import { useRouter } from "expo-router";
 import { GlobalContext } from "../GlobalProvider"; // Importamos el contexto global
 import styles from "../styles/globalStyles";
 import ModalPaciente from "../components/ModalPaciente";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 const PacienteScreen = () => {
   const router = useRouter();
   const { dataLoaded, grupos, pacientes, setPacientes } = useContext(GlobalContext);
   
   // Recalcular la lista de pacientes solo si los datos ya se cargaron y pacientes está vacío.
-  useEffect(() => {
-    if (dataLoaded && grupos.length > 0) {
-      const pacientesGenerados = grupos.flatMap((grupo) =>
-        Array.from({ length: parseInt(grupo.cantidadPacientes, 10) || 0 }).map((_, i) => ({
-          id: `${grupo.id}-paciente-${i}`,
-          nombre: "",
-          grupoName: grupo.name,
-          sexo: "",
-          edad: "",
-          peso: "",
-          descripcion: "",
-        }))
-      );
-  
-      setPacientes((prev) => {
-        const pacientesActualizados = pacientesGenerados.map((p) => {
-          const existente = prev.find((x) => x.id === p.id);
-          return existente ? existente : p;
-        });
-  
-        return pacientesActualizados;
+useEffect(() => {
+  if (dataLoaded && grupos.length > 0) {
+    const pacientesGenerados = grupos.flatMap((grupo) =>
+      Array.from({ length: parseInt(grupo.cantidadPacientes, 10) || 0 }).map((_, i) => ({
+        id: `${grupo.id}-paciente-${i}`,
+        nombre: "",
+        grupoName: grupo.name,
+        sexo: "",
+        edad: "",
+        peso: "",
+        descripcion: "",
+      }))
+    );
+
+    setPacientes((prev) => {
+      const pacientesActualizados = pacientesGenerados.map((p) => {
+        const existente = prev.find((x) => x.id === p.id);
+        return existente ? existente : p;
       });
-    }
-  }, [dataLoaded, grupos]);
-  
+
+      return pacientesActualizados;
+    });
+  }
+}, [dataLoaded, grupos]);
+
   
   useEffect(() => {
     console.log("👀 Estado actual de pacientes:", JSON.stringify(pacientes, null, 2));
@@ -110,6 +111,7 @@ const PacienteScreen = () => {
         data={pacientes}
         keyExtractor={(item) => item.id}
         renderItem={renderPaciente}
+        contentContainerStyle={{ paddingTop: 20 }} 
       />
       <ModalPaciente
         visible={modalVisible}
@@ -130,7 +132,10 @@ const PacienteScreen = () => {
             })
           }
         >
-          <Text style={styles.botonesD}>CONTINUAR</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={styles.botonesD}>CONTINUAR</Text>
+            <Icon name="arrow-forward-ios" size={20} color="#fff" />
+          </View>
         </TouchableOpacity>
       </View>
     </View>
