@@ -1,5 +1,5 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
     "paths": {
@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "app/grupo.js", "App.js", "app/navegacion.js", "screens/HomeScreen.js"  ]
+, "app/grupo.js", "index.js", "app/navegacion.js", "screens/HomeScreen.js"  ]
 }

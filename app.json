@@ -2,10 +2,9 @@
   "expo": {
     "name": "my-app",
     "slug": "my-app",
-    "entryPoint": "./App.js", 
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/iconoApp.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/iconoApp.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.simoondiez.myapp"
@@ -26,6 +25,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-splash-screen",
@@ -34,6 +34,14 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "windowSoftInputMode": "adjustPan|stateHidden"
+          }
         }
       ]
     ],
@@ -47,6 +55,7 @@
       "eas": {
         "projectId": "c1eb18b4-f981-425e-83b2-da6578f8696f"
       }
-    }
+    },
+    "owner": "simoondiez"
   }
 }

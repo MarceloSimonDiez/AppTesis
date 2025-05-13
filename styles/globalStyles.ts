@@ -5,6 +5,20 @@ import { Dimensions } from 'react-native';
 const { height, width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
+
+    // estilos genéricos para cada pantalla
+    container: {
+      flex: 1,
+      backgroundColor: "#fff",
+    },
+  
+    header: {
+      height: 60,
+      justifyContent: "center",
+      alignItems: "center",
+      borderBottomWidth: 1,
+      borderBottomColor: "#ddd",
+    },
   
     main: {
       fontFamily: 'Roboto_400Regular',
@@ -17,7 +31,7 @@ const styles = StyleSheet.create({
     fondoApp: {
       backgroundColor: "#873B8C",
       flex: 1,
-      marginTop: 50,
+      marginTop: 0,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
       padding: 20,
@@ -99,7 +113,8 @@ const styles = StyleSheet.create({
     },
     // Estilos para los rectángulos de los grupos
     grupoContainer: {
-      backgroundColor: "#D09CFA", // Color morado claro
+      // backgroundColor: "#D09CFA", // Color morado claro
+      backgroundColor: "transparent",
       borderRadius: 12,          // Bordes redondeados
       padding: 12,               // Espaciado interno
       marginBottom: 16,          // Espacio entre grupos
@@ -147,18 +162,17 @@ const styles = StyleSheet.create({
 
   extraccionesScreenContainer: {
     flex: 1,
-    backgroundColor: '#F2D7FF', // Fondo rosa claro
-},
+    backgroundColor: "white",
+  },
 
 headerContainerE: {
-  paddingTop: 0,         // 👈 Esto asegura que el texto baje lo suficiente
-  paddingBottom: 12,
+  backgroundColor: "#fff",
+  paddingVertical: 16,
   alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: "#873B8C",
+  borderBottomColor: "#EEE",
 },
 headerContainerEX: {
-  paddingTop: 32,         // 👈 Esto asegura que el texto baje lo suficiente
+  paddingTop: 32,         
   paddingBottom: 12,
   alignItems: "center",
   justifyContent: "center",
@@ -167,9 +181,9 @@ headerContainerEX: {
 
 
 headerText: {
-    fontSize: 20,
-    color: 'white',
-    fontWeight: 'bold',
+  fontSize: 20,
+  fontWeight: "bold",
+  color: "#333",
 },
 
 extraccionContainer: {

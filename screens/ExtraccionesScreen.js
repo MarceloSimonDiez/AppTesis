@@ -1,14 +1,17 @@
-import React, { useContext, useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, FlatList, Alert, SafeAreaView } from "react-native";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import React, { useContext, useEffect, useState, useReducer } from "react";
+import { View, Text, TouchableOpacity, FlatList, Alert, SafeAreaView, AppState,Platform} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import styles from "../styles/globalStyles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GlobalContext } from "../GlobalProvider";
-
+import buttonStyles from '../styles/buttonStyles';
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import * as Notifications from 'expo-notifications';
 
+
+// Función para formatear un tiempo dado en segundos (usada para otros tiempos)
 const formatTiempo = (segundos) => {
   if (segundos < 60) return `${segundos}s`;
   const minutos = Math.floor(segundos / 60);
@@ -17,10 +20,25 @@ const formatTiempo = (segundos) => {
   return `${horas}h`;
 };
 
+// Función que calcula y formatea el tiempo transcurrido (retardo) a partir de zeroReachedAt
+const formatRetardo = (zeroReachedAt) => {
+  if (!zeroReachedAt) return "0s";
+  
+  const elapsed = Math.floor((Date.now() - zeroReachedAt) / 1000);
+  
+  const horas = Math.floor(elapsed / 3600);
+  const minutos = Math.floor((elapsed % 3600) / 60);
+  const segundos = elapsed % 60;
+  
+  if (horas > 0) return `${horas}h ${minutos}m ${segundos}s`;
+  if (minutos > 0) return `${minutos}m ${segundos}s`;
+  return `${segundos}s`;
+};
 
 const ExtraccionesScreen = () => {
   const router = useRouter();
   const {
+    grupos,
     pacientes,
     intervalos,
     dataLoaded,
@@ -28,9 +46,45 @@ const ExtraccionesScreen = () => {
     setPacientes,
     setIntervalos,
   } = useContext(GlobalContext);
-
+  const { sampleName } = useContext(GlobalContext);
   const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
   const [temporizadores, setTemporizadores] = useState({});
+
+  // Utilizamos useReducer para forzar un re-render cada segundo.
+  // Cada vez que se llama a forceUpdate() se actualiza un estado interno que no usamos,
+  // lo que provoca que React vuelva a renderizar el componente.
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate();
+    }, 1000); // Cada 1000 milisegundos (1 segundo)
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    Notifications.requestPermissionsAsync();
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+      }),
+    });
+  }, []);
+  
+  useEffect(() => {
+    // Para Android: canal de alarma de máxima prioridad
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('alarm-channel', {
+        name: 'Alarm Channel',
+        importance: Notifications.AndroidImportance.MAX,           // prioridad máxima
+        sound: 'default',                                         // usar sonido por defecto
+        vibrationPattern: [0, 250, 250, 250],
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC
+      });
+    }
+  }, []);
   
 
   useEffect(() => {
@@ -54,7 +108,7 @@ const ExtraccionesScreen = () => {
           const parsed = JSON.parse(data);
           setPatientsWithIntervals(parsed);
         } else {
-          // si no hay datos previos, armamos la estructura
+          // Si no hay datos previos, armamos la estructura
           const nuevosPacientes = pacientes.map((p) => ({
             ...p,
             intervalos: intervalos.map((i) => ({
@@ -73,7 +127,6 @@ const ExtraccionesScreen = () => {
     cargarPacientesConIntervalos();
   }, [pacientes, intervalos]);
   
-
   useEffect(() => {
     const cargarTemporizadores = async () => {
       if (pacientes.length === 0) return;
@@ -99,17 +152,18 @@ const ExtraccionesScreen = () => {
   
           // Calcular estado del temporizador si existe
           if (temporizadorGuardado) {
-            const { startTime, intervalIndex, duration, zeroReachedAt } = temporizadorGuardado;
+            const { startTime, intervalIndex, duration, zeroReachedAt, finished, allFinished } = temporizadorGuardado;
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
             const remaining = Math.max(duration - elapsed, 0);
-  
+            const calculadoZero = zeroReachedAt ?? (remaining === 0 ? startTime + duration * 1000 : null);
             nuevosTimers[paciente.id] = {
               activo: remaining > 0,
               tiempo: remaining,
-              finished: remaining === 0,
-              allFinished: false,
+              finished: finished !== undefined ? finished : (remaining === 0),
+              allFinished: allFinished !== undefined ? allFinished : false,
               intervalIndex,
-              zeroReachedAt,
+              zeroReachedAt: calculadoZero,
+              notificationId: null,
             };
           }
   
@@ -139,8 +193,43 @@ const ExtraccionesScreen = () => {
     cargarTemporizadores();
   }, [pacientes]);
   
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", async (nextAppState) => {
+      if (nextAppState === "active") {
+        console.log("🔙 Volvimos al primer plano. Recalculando temporizadores...");
+        const nuevosTimers = {};
   
-
+        for (const paciente of pacientes) {
+          try {
+            const dataStr = await AsyncStorage.getItem(`temporizador-${paciente.id}`);
+            if (dataStr) {
+              // Recuperamos además finished y allFinished
+              const { startTime, intervalIndex, duration, zeroReachedAt, finished, allFinished } = JSON.parse(dataStr);
+              const elapsed = Math.floor((Date.now() - startTime) / 1000);
+              const remaining = Math.max(duration - elapsed, 0);
+              const calculadoZero = zeroReachedAt ?? (remaining === 0 ? startTime + duration * 1000 : null);
+  
+              nuevosTimers[paciente.id] = {
+                activo: remaining > 0,
+                tiempo: remaining,
+                finished: finished !== undefined ? finished : (remaining === 0),
+                allFinished: allFinished !== undefined ? allFinished : false,
+                intervalIndex,
+                zeroReachedAt: calculadoZero,
+              };
+            }
+          } catch (e) {
+            console.warn("⛔ Error al recalcular desde segundo plano:", e);
+          }
+        }
+  
+        setTemporizadores(nuevosTimers);
+      }
+    });
+  
+    return () => subscription.remove();
+  }, [pacientes]);
+    
   useEffect(() => {
     const intervalId = setInterval(() => {
       setTemporizadores((prev) => {
@@ -153,22 +242,27 @@ const ExtraccionesScreen = () => {
             } else if (!data.finished) {
               data.tiempo = 0;
               data.activo = false;
+              
+              
               data.finished = true;
-            
+              if ('notificationId' in data && data.notificationId) {
+                Notifications.cancelScheduledNotificationAsync(data.notificationId);
+              }
+
+  
               if (!data.zeroReachedAt) {
                 data.zeroReachedAt = Date.now();
-              
-                // ✅ Guardar en AsyncStorage para persistir
-                AsyncStorage.getItem(`temporizador-${id}`).then((savedStr) => {
-                  if (savedStr) {
-                    const saved = JSON.parse(savedStr);
-                    saved.zeroReachedAt = data.zeroReachedAt;
-                    AsyncStorage.setItem(`temporizador-${id}`, JSON.stringify(saved));
-                  }
-                });
               }
-              
-            }                       
+              // Guardamos el estado completo en AsyncStorage
+              AsyncStorage.getItem(`temporizador-${id}`).then((savedStr) => {
+                if (savedStr) {
+                  const saved = JSON.parse(savedStr);
+                  saved.zeroReachedAt = data.zeroReachedAt;
+                  saved.finished = true;
+                  AsyncStorage.setItem(`temporizador-${id}`, JSON.stringify(saved));
+                }
+              });
+            }
           }
         });
         return nextState;
@@ -177,6 +271,10 @@ const ExtraccionesScreen = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  const algunTemporizadorIniciado = Object.values(temporizadores).some(
+    (t) => t.intervalIndex !== 0 || t.activo || t.finished
+  );
+  
   const convertirAHorasMinutos = (hours, minutes) =>
     parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60;
 
@@ -202,7 +300,7 @@ const ExtraccionesScreen = () => {
     const { hours, minutes } = intervaloActual.tiempo;
     const totalSegundos = parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60;
     const startTime = Date.now();
-    const horaInicio = new Date().toLocaleTimeString(); // ej: "14:32:51"
+    const horaInicio = new Date().toLocaleTimeString();
   
     await AsyncStorage.setItem(
       `temporizador-${idPaciente}`,
@@ -215,7 +313,7 @@ const ExtraccionesScreen = () => {
       })
     );
   
-    setTemporizadores((prev) => ({
+    setTemporizadores(prev => ({
       ...prev,
       [idPaciente]: {
         activo: true,
@@ -225,10 +323,42 @@ const ExtraccionesScreen = () => {
         intervalIndex,
         horaInicio,
         zeroReachedAt: null,
+        notificationId: null,   
       },
     }));
+    
+    
+    if (totalSegundos > 59) {
+      const endTime     = startTime + totalSegundos * 1000;
+      const triggerDate = new Date(endTime -   59_000); // 59 s antes
+    
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '⏰ ¡Esta por terminar el tiempo',
+          body:  `Al paciente ${paciente.nombre} le falta poco para terminar.`,
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
+        },
+        trigger: {
+          type:      Notifications.SchedulableTriggerInputTypes.DATE,
+          date:      triggerDate,
+          channelId: 'alarm-channel',
+          allowWhileIdle: true,
+        },
+      });
+    
+      setTemporizadores(prev => ({
+        ...prev,
+        [idPaciente]: {
+          ...prev[idPaciente],
+          notificationId,    
+        },
+      }));
+    }
+    
+    
   
-    // Guardamos también visualmente la hora legible dentro del array de intervalos
+    // Actualizamos la hora de inicio en el array de intervalos
     setPatientsWithIntervals((prev) =>
       prev.map((paciente) => {
         if (paciente.id === idPaciente) {
@@ -249,39 +379,44 @@ const ExtraccionesScreen = () => {
     );
   };
   
-
   const activarTemporizador = (idPaciente) => {
     const data = temporizadores[idPaciente];
     if (data?.activo && !data?.finished) return;
     iniciarIntervalo(idPaciente, 0);
   };
+
   const registrarResultadoIntervalo = (idPaciente, outcome, tiempoRespuesta) => {
     setPatientsWithIntervals((prev) => {
-      const actualizados = prev.map((paciente) => {
+      const nuevosPacientes = prev.map((paciente) => {
         if (paciente.id === idPaciente) {
           const currentIndex = temporizadores[idPaciente]?.intervalIndex ?? 0;
+          const nuevosIntervalos = paciente.intervalos.map((intervalo, index) =>
+            index === currentIndex
+              ? {
+                  ...intervalo,
+                  outcome,
+                  tiempoRespuesta,
+                }
+              : intervalo
+          );
+  
+          AsyncStorage.setItem(
+            `intervalosTomados-${idPaciente}`,
+            JSON.stringify(nuevosIntervalos)
+          );
+  
           return {
             ...paciente,
-            intervalos: paciente.intervalos.map((intervalo, index) =>
-              index === currentIndex
-                ? {
-                    ...intervalo,
-                    outcome,
-                    tiempoRespuesta,
-                  }
-                : intervalo
-            ),
+            intervalos: nuevosIntervalos,
           };
         }
         return paciente;
       });
-  
-      AsyncStorage.setItem('intervalosTomados', JSON.stringify(actualizados));
-      return actualizados;
+      return nuevosPacientes;
     });
   };
-    
-  const iniciarSiguienteIntervalo = (idPaciente, outcome) => {
+  
+  const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
     const zeroTime = temporizadores[idPaciente]?.zeroReachedAt;
     let tiempoRespuesta = null;
   
@@ -290,32 +425,82 @@ const ExtraccionesScreen = () => {
       console.log(`⏰ Paciente ${idPaciente} tardó ${tiempoRespuesta} segundos en responder`);
     }
   
-    registrarResultadoIntervalo(idPaciente, outcome, tiempoRespuesta);
+    await registrarResultadoIntervalo(idPaciente, outcome, tiempoRespuesta);
   
     const data = temporizadores[idPaciente];
     if (!data) return;
   
     const nextIndex = data.intervalIndex + 1;
+    const paciente = patientsWithIntervals.find((p) => p.id === idPaciente);
+    if (!paciente || nextIndex >= paciente.intervalos.length) {
+      const actualizados = paciente.intervalos.map((intervalo, index) =>
+        index === data.intervalIndex
+          ? { ...intervalo, outcome, tiempoRespuesta }
+          : intervalo
+      );
+      await AsyncStorage.setItem(
+        `intervalosTomados-${paciente.id}`,
+        JSON.stringify(actualizados)
+      );
+      
+      setTemporizadores((prev) => ({
+        ...prev,
+        [idPaciente]: {
+          ...prev[idPaciente],
+          activo: false,
+          tiempo: 0,
+          finished: true,
+          allFinished: true,
+        },
+      }));
+      
+      AsyncStorage.getItem(`temporizador-${idPaciente}`).then((savedStr) => {
+        if (savedStr) {
+          const saved = JSON.parse(savedStr);
+          saved.finished = true;
+          saved.allFinished = true;
+          AsyncStorage.setItem(`temporizador-${idPaciente}`, JSON.stringify(saved));
+        }
+      });
+      
+      return;
+    }
+  
     iniciarIntervalo(idPaciente, nextIndex);
   };
   
   const exportarMatriz = async () => {
-    const cabecera = ["Paciente", ...intervalos.map((_, i) => `Intervalo ${i + 1}`)];
+    const cabecera = [
+      "Nombre",
+      "Edad",
+      "Sexo",
+      "Peso",
+      "Descripción",
+      "Grupo",
+      ...intervalos.map((_, i) => `Intervalo ${i + 1}`)
+    ];
   
     const filas = patientsWithIntervals.map((p) => {
-      const fila = [p.nombre];
+      const fila = [
+        p.nombre,
+        p.edad,
+        p.sexo,
+        p.peso,
+        p.descripcion,
+        p.grupoName
+      ];
+    
       p.intervalos.forEach((i) => {
-        if (i.outcome === "1") {
-          const tiempo = i.tiempoRespuesta != null ? `✔ (${formatTiempo(i.tiempoRespuesta)})` : "✔";
-          fila.push(tiempo);
-        } else if (i.outcome === "0") {
-          fila.push("❌");
-        } else {
-          fila.push("-");
-        }
+        const symbol = i.outcome === "1" ? "si" : "no";
+        const suffix = i.tiempoRespuesta != null
+          ? ` (${formatTiempo(i.tiempoRespuesta)})`
+          : "";
+        fila.push(`${symbol}${suffix}`);
       });
+    
       return fila;
     });
+    
   
     const matriz = [cabecera, ...filas];
     const csvString = matriz.map((fila) => fila.join(",")).join("\n");
@@ -348,23 +533,8 @@ const ExtraccionesScreen = () => {
       console.error("Error al limpiar persistencia:", err);
     }
   };
-  
-  const formatRetardo = (zeroReachedAt) => {
-    if (!zeroReachedAt) return "0s";
-  
-    const elapsed = Math.floor((Date.now() - zeroReachedAt) / 1000);
-  
-    const horas = Math.floor(elapsed / 3600);
-    const minutos = Math.floor((elapsed % 3600) / 60);
-    const segundos = elapsed % 60;
-  
-    if (horas > 0) return `${horas}h ${minutos}m ${segundos}s`;
-    if (minutos > 0) return `${minutos}m ${segundos}s`;
-    return `${segundos}s`;
-  };
-  
-  
 
+  
   const renderPaciente = ({ item: paciente }) => {
     const temp = temporizadores[paciente.id];
     const tiempoRestante = temp ? temp.tiempo : 0;
@@ -374,9 +544,11 @@ const ExtraccionesScreen = () => {
     const totalIntervals = paciente.intervalos.length;
     const safeDisplayedIndex = Math.min(currentIndex + 1, totalIntervals);
     const muestraTexto = `muestra: ${safeDisplayedIndex}/${totalIntervals}`;
+    const grupo = grupos.find(g => g.name === paciente.grupoName);
+    const bgColor = grupo?.color ?? "#EEE";
 
     return (
-      <View style={styles.extraccionContainerE}>
+      <View style={[styles.extraccionContainerE, { backgroundColor: bgColor }]}>
         <Text style={styles.muestraText}>{muestraTexto}</Text>
         <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%" }}>
           <View style={styles.infoContainerE}>
@@ -412,38 +584,38 @@ const ExtraccionesScreen = () => {
           </View>
         )}
 
-{temp?.finished && !temp?.allFinished && (
-  <View style={styles.confirmContainerExtracciones}>
-    <Text style={styles.timerText}>
-      tiempo de retardo: {formatRetardo(temp.zeroReachedAt)}
-    </Text>
-    <View style={styles.buttonsRowExtracciones}>
-      <TouchableOpacity
-        style={styles.confirmButtonExtracciones}
-        onPress={() => iniciarSiguienteIntervalo(paciente.id, "1")}
-      >
-        <MaterialCommunityIcons name="check" size={24} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.cancelButtonExtracciones}
-        onPress={() => iniciarSiguienteIntervalo(paciente.id, "0")}
-      >
-        <MaterialCommunityIcons name="close" size={24} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  </View>
-)}
-
+        {temp?.finished && !temp?.allFinished && (
+          <View style={styles.confirmContainerExtracciones}>
+            <Text style={styles.timerText}>
+              tiempo de retardo: {formatRetardo(temp.zeroReachedAt)}
+            </Text>
+            <View style={styles.buttonsRowExtracciones}>
+              <TouchableOpacity
+                style={styles.confirmButtonExtracciones}
+                onPress={() => iniciarSiguienteIntervalo(paciente.id, "1")}
+              >
+                <MaterialCommunityIcons name="check" size={24} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelButtonExtracciones}
+                onPress={() => iniciarSiguienteIntervalo(paciente.id, "0")}
+              >
+                <MaterialCommunityIcons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     );
   };
 
+  // const allPatientsFinished = patientsWithIntervals.length > 0 && patientsWithIntervals.every((p) => {
+  //   const data = temporizadores[p.id];
+  //   return data ? data.allFinished === true : true;
+  // });
   const allPatientsFinished =
-    patientsWithIntervals.length > 0 &&
-    patientsWithIntervals.every((p) => {
-      const data = temporizadores[p.id];
-      return data ? data.allFinished === true : true;
-    });
+  pacientes.length > 0 &&
+  pacientes.every((p) => temporizadores[p.id]?.allFinished === true);
 
   const sortedPatients = [...patientsWithIntervals].sort((a, b) => {
     const dataA = temporizadores[a.id];
@@ -458,31 +630,40 @@ const ExtraccionesScreen = () => {
 
   return (
     <View style={styles.extraccionesScreenContainer}>
-      <SafeAreaView style={{ backgroundColor: "#873B8C" }}>
+      <SafeAreaView >
         <View style={styles.headerContainerE}>
-          <Text style={styles.headerText}>Próximas Extracciones</Text>
+          <Text style={styles.headerText}>Próximas Extracciones de </Text>
+          <Text style={styles.headerText}>{sampleName} </Text>
         </View>
       </SafeAreaView>
-  
+
       <FlatList
         data={sortedPatients}
         keyExtractor={(item) => item.id}
         renderItem={renderPaciente}
         contentContainerStyle={{ padding: 16 }}
       />
-
   
       <View style={styles.botonesContainer}>
         <TouchableOpacity onPress={() => router.push("esquema")}>
           <Text style={styles.botonesI}>VOLVER</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={exportarMatriz}>
-          <Text style={styles.botonesD}>Terminar</Text>
-        </TouchableOpacity>
+        
+        {/* {algunTemporizadorIniciado && allPatientsFinished && (
+          <TouchableOpacity style={buttonStyles.button} onPress={exportarMatriz}>
+            <Text style={styles.botonesD}>Terminar</Text>
+          </TouchableOpacity>
+        )} */}
+        {allPatientsFinished && (
+  <TouchableOpacity style={buttonStyles.button} onPress={exportarMatriz}>
+    <Text style={styles.botonesD}>Terminar</Text>
+  </TouchableOpacity>
+)}
+
       </View>
     </View>
+    
   );
-  
 };
 
 export default ExtraccionesScreen;

@@ -1,35 +1,51 @@
-import React, { useState, useEffect } from "react";
+// ModalGrupo.js
+import React, { useEffect, useRef, useState, } from "react";
 import {
-  Modal,
-  TextInput,
   View,
   Text,
+  TextInput,
+  ScrollView,
   TouchableOpacity,
-  KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
-  Platform,
+  StyleSheet,
+  Dimensions,
 } from "react-native";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { MaterialIcons } from "@expo/vector-icons";
 import modalStyles from "../styles/modalStyles";
 import CustomButton from "./ButtonAgregar";
+import { StatusBar } from "react-native";
+
+
+const { width, height } = Dimensions.get("window");
 
 const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [cantidadPacientes, setCantidadPacientes] = useState("");
+  const nameRef = useRef(null);
 
+  // Carga datos al editar
   useEffect(() => {
     if (grupoEditando) {
       setName(grupoEditando.name);
       setDescription(grupoEditando.description);
-      setCantidadPacientes(grupoEditando.cantidadPacientes?.toString() || "");
+      setCantidadPacientes(
+        grupoEditando.cantidadPacientes?.toString() || ""
+      );
     } else {
       setName("");
       setDescription("");
       setCantidadPacientes("");
     }
   }, [grupoEditando]);
+
+  // Auto–focus al aparecer
+  useEffect(() => {
+    if (visible) {
+      setTimeout(() => nameRef.current?.focus(), 100);
+    }
+  }, [visible]);
 
   const handleAdd = () => {
     onAdd(name, description, cantidadPacientes);
@@ -39,38 +55,42 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
     onClose();
   };
 
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={modalStyles.modalBackground}
-        >
-          <View style={modalStyles.modalContainer}>
-            <View style={modalStyles.modalHeader}>
-              <Text style={modalStyles.modalTitle}>
-                {grupoEditando ? "EDITAR GRUPO" : "AGREGAR GRUPO"}
-              </Text>
-              <TouchableOpacity onPress={onClose}>
-                <Icon name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
+  if (!visible) return null;
 
+  return (
+    
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      {/* Overlay full‐screen */}
+      <View style={styles.overlay}>
+        {/* Contenedor del modal */}
+        <View style={modalStyles.modalContainer}>
+          {/* Header */}
+          <View style={modalStyles.modalHeader}>
+            <Text style={modalStyles.modalTitle}>
+              {grupoEditando ? "EDITAR GRUPO" : "AGREGAR GRUPO"}
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <MaterialIcons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Zona scrollable */}
+          <ScrollView
+            contentContainerStyle={modalStyles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <Text style={modalStyles.label}>Nombre:</Text>
             <View style={modalStyles.inputContainer}>
               <TextInput
+                ref={nameRef}
                 style={modalStyles.input}
                 placeholder="Ingrese el nombre"
                 placeholderTextColor="#888"
                 value={name}
                 onChangeText={setName}
               />
-              <Icon name="edit" size={20} color="#888" />
+              <MaterialIcons name="edit" size={20} color="#888" />
             </View>
 
             <Text style={modalStyles.label}>Descripción:</Text>
@@ -82,7 +102,7 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                 value={description}
                 onChangeText={setDescription}
               />
-              <Icon name="edit" size={20} color="#888" />
+              <MaterialIcons name="edit" size={20} color="#888" />
             </View>
 
             <Text style={modalStyles.label}>Cantidad de Pacientes:</Text>
@@ -95,15 +115,40 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                 value={cantidadPacientes}
                 onChangeText={setCantidadPacientes}
               />
-              <Icon name="people" size={20} color="#888" />
+              <MaterialIcons name="people" size={20} color="#888" />
             </View>
+          </ScrollView>
+        </View>
 
-            <CustomButton title={grupoEditando ? "GUARDAR CAMBIOS" : "AGREGAR"} onPress={handleAdd} />
-          </View>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
-    </Modal>
+
+        <View style={[modalStyles.modalFooter, styles.footer]}>
+          <CustomButton
+            title={grupoEditando ? "GUARDAR CAMBIOS" : "AGREGAR"}
+            onPress={handleAdd}
+          />
+        </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
 export default ModalGrupo;
+
+const styles = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width,
+    height,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999, // por encima de todo
+  },
+  footer: {
+    bottom: 60,
+    left: 20,
+    right: 20,
+  },
+});

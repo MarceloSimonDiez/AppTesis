@@ -5,13 +5,16 @@ import { useRouter } from "expo-router";
 import { GlobalContext } from "../GlobalProvider"; // Importamos el contexto global
 import styles from "../styles/globalStyles";
 import ModalPaciente from "../components/ModalPaciente";
-import Icon from "react-native-vector-icons/MaterialIcons";
+// import Icon from "react-native-vector-icons/MaterialIcons";
+import { MaterialIcons } from "@expo/vector-icons";
+
 
 const PacienteScreen = () => {
   const router = useRouter();
   const { dataLoaded, grupos, pacientes, setPacientes } = useContext(GlobalContext);
+  const { sampleName } = useContext(GlobalContext);
+
   
-  // Recalcular la lista de pacientes solo si los datos ya se cargaron y pacientes está vacío.
 useEffect(() => {
   if (dataLoaded && grupos.length > 0) {
     const pacientesGenerados = grupos.flatMap((grupo) =>
@@ -67,11 +70,15 @@ useEffect(() => {
 
   const renderPaciente = ({ item }) => {
     console.log("Renderizando paciente:", item);
+    const grupo = grupos.find(g => g.name === item.grupoName);
+    const bgColor = grupo?.color ?? "#BB86FC";
+
     return (
       <TouchableOpacity
         style={{
           marginBottom: 12,
-          backgroundColor: "#BB86FC",
+          // backgroundColor: "#BB86FC",
+          backgroundColor: bgColor,
           borderRadius: 12,
           padding: 8,
           flexDirection: "row",
@@ -105,6 +112,11 @@ useEffect(() => {
    );
 };
   return (
+    <View style={styles.container}>
+    {/* tu header blanco aquí */}
+    <View style={styles.header}>
+      <Text style={styles.headerText}>{sampleName}</Text>
+    </View>
     <View style={styles.fondoApp}>
       <Text style={styles.main}>PACIENTE</Text>
       <FlatList
@@ -134,11 +146,12 @@ useEffect(() => {
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text style={styles.botonesD}>CONTINUAR</Text>
-            <Icon name="arrow-forward-ios" size={20} color="#fff" />
+            <MaterialIcons name="arrow-forward-ios" size={20} color="#fff" />
           </View>
         </TouchableOpacity>
       </View>
     </View>
+     </View>
   );
 };
 

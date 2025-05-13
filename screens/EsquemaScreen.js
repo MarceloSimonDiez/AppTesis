@@ -2,7 +2,8 @@
 import React, { useContext, useState } from "react";
 import { View, Text, TouchableOpacity, Modal, FlatList } from "react-native";
 import { useRouter } from "expo-router";
-import Icon from "react-native-vector-icons/MaterialIcons";
+// import Icon from "react-native-vector-icons/MaterialIcons";
+import { MaterialIcons } from "@expo/vector-icons";
 import styles from "../styles/globalStyles";
 import CustomButton from "../components/ButtonAgregar";
 import TimePicker from "../components/TimePicker";
@@ -14,13 +15,29 @@ const EsquemaScreen = () => {
   const { pacientes, intervalos, setIntervalos } = useContext(GlobalContext);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const { sampleName } = useContext(GlobalContext);
 
-  const agregarIntervalo = () => {
-    setIntervalos(prev => [
-      ...prev,
-      { id: Date.now().toString(), tiempo: { hours: "00", minutes: "00" } },
-    ]);
-  };
+  // const agregarIntervalo = () => {
+  //   setIntervalos(prev => [
+  //     ...prev,
+  //     { id: Date.now().toString(), tiempo: { hours: "00", minutes: "00" } },
+  //   ]);
+  // };
+
+  const [pendingTime, setPendingTime] = useState({ hours: "00", minutes: "00" });
+
+const abrirModal = (id) => {
+  if (id) {
+    // estamos editando uno existente
+    const existing = intervalos.find(item => item.id === id);
+    setPendingTime(existing.tiempo);
+  } else {
+    // es un nuevo intervalo
+    setPendingTime({ hours: "00", minutes: "00" });
+  }
+  setSelectedId(id);
+  setModalVisible(true);
+};
 
   const eliminarIntervalo = (id) => {
     setIntervalos(prev => prev.filter(item => item.id !== id));
@@ -32,10 +49,10 @@ const EsquemaScreen = () => {
     );
   };
 
-  const abrirModal = (id) => {
-    setSelectedId(id);
-    setModalVisible(true);
-  };
+  // const abrirModal = (id) => {
+  //   setSelectedId(id);
+  //   setModalVisible(true);
+  // };
 
   const cerrarModal = () => {
     setModalVisible(false);
@@ -52,12 +69,17 @@ const EsquemaScreen = () => {
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => eliminarIntervalo(item.id)}>
-        <Icon name="close" size={20} color="#fff" />
+        <MaterialIcons name="close" size={20} color="#fff" />
       </TouchableOpacity>
     </View>
   );
 
   return (
+    <View style={styles.container}>
+    {/* tu header blanco aquí */}
+    <View style={styles.header}>
+      <Text style={styles.headerText}>{sampleName}</Text>
+    </View>
     <View style={styles.fondoApp}>
       <Text style={styles.main}>ESQUEMA</Text>
       <FlatList
@@ -66,21 +88,46 @@ const EsquemaScreen = () => {
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 80, paddingTop: 20}}
       />
-      <CustomButton title="AGREGAR" onPress={agregarIntervalo} />
+   <CustomButton
+  title="AGREGAR"
+  onPress={() => abrirModal(null)}
+/>
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>SELECCIONAR TIEMPO</Text>
-            <TimePicker
+            {/* <TimePicker
               onTimeChange={(nuevoTiempo) => {
                 if (selectedId) {
                   actualizarTiempo(selectedId, nuevoTiempo);
                 }
               }}
+            /> */}
+            <TimePicker
+             onTimeChange={setPendingTime}
             />
-            <TouchableOpacity style={styles.modalButton} onPress={cerrarModal}>
+            {/* <TouchableOpacity style={styles.modalButton} onPress={cerrarModal}>
               <Text style={styles.modalButtonText}>CONFIRMAR</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+            <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  if (selectedId) {
+                    // actualizar uno existente
+                    actualizarTiempo(selectedId, pendingTime);
+                  } else {
+                    // crear uno nuevo con el tiempo seleccionado
+                    const newId = Date.now().toString();
+                    setIntervalos(prev => [
+                      ...prev,
+                      { id: newId, tiempo: pendingTime },
+                    ]);
+                  }
+                  cerrarModal();
+                }}
+              >
+                <Text style={styles.modalButtonText}>CONFIRMAR</Text>
+              </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -91,11 +138,12 @@ const EsquemaScreen = () => {
         <TouchableOpacity onPress={() => router.push({ pathname: "extracciones" })}>
            <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text style={styles.botonesD}>CONTINUAR</Text>
-              <Icon name="arrow-forward-ios" size={20} color="#fff" />
+              <MaterialIcons name="arrow-forward-ios" size={20} color="#fff" />
             </View>
         </TouchableOpacity>
       </View>
     </View>
+       </View>
   );
 };
 

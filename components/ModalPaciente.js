@@ -1,52 +1,105 @@
+// ModalPacienteSimple.js
 import React, { useState, useEffect } from "react";
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  Keyboard,
+} from "react-native";
 import modalStyles from "../styles/modalStyles";
-import buttonStyles from "../styles/buttonStyles";
+import CustomButton from "./ButtonAgregar";
 
 
-const ModalPaciente = ({ visible, onClose, onAdd, paciente }) => {
+const { width, height } = Dimensions.get("window");
+const SBH = StatusBar.currentHeight || 0;
+const SCROLL_PADDING_TOP = 100;
+const FOOTER_HEIGHT = 100;
+
+
+
+export default function ModalPaciente({ visible, onClose, onAdd, paciente }) {
+  // — tus estados de campos —
+  const [grupo, setGrupo] = useState("");
   const [nombre, setNombre] = useState("");
-  const [edad, setEdad] = useState("");
   const [sexo, setSexo] = useState("");
+  const [edad, setEdad] = useState("");
   const [peso, setPeso] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [grupo, setGrupo] = useState("");
 
+  // — efecto para poblar datos de `paciente` —
   useEffect(() => {
     if (paciente) {
+      setGrupo(paciente.grupoName || "");
       setNombre(paciente.nombre || "");
-      setEdad(paciente.edad || "");
+      setEdad(paciente.edad?.toString() || "");
       setSexo(paciente.sexo || "");
-      setPeso(paciente.peso || "");
+      setPeso(paciente.peso?.toString() || "");
       setDescripcion(paciente.descripcion || "");
-      setGrupo(paciente.grupoName || "Sin grupo");
+    } else {
+      setGrupo("");
+      setNombre("");
+      setEdad("");
+      setSexo("");
+      setPeso("");
+      setDescripcion("");
     }
   }, [paciente]);
 
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+useEffect(() => {
+  const showSub = Keyboard.addListener("keyboardDidShow", () => {
+    setKeyboardVisible(true);
+  });
+  const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+    setKeyboardVisible(false);
+  });
+  return () => {
+    showSub.remove();
+    hideSub.remove();
+  };
+}, []);
+
   const handleSave = () => {
-    onAdd({
-      nombre,
-      edad,
-      sexo,
-      peso,
-      descripcion,
-    });
+    onAdd({ nombre, edad, sexo, peso, descripcion });
     onClose();
   };
 
+  
+
+  if (!visible) return null;
+
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={modalStyles.modalBackground}>
-        <View style={modalStyles.modalContainer}>
-          <View style={modalStyles.modalHeader}>
-            <Text style={modalStyles.modalTitle}>Editar Paciente</Text>
+    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.wrapper}>
+
+           <View style={styles.closeButtonContainer}>
             <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color="#fff" />
+               <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>
           </View>
-
-          <ScrollView style={modalStyles.scrollContainer} contentContainerStyle={{ paddingBottom: 80 }}>
+          <KeyboardAvoidingView
+              behavior={Platform.OS === "android" ? "height" : "padding"}
+              keyboardVerticalOffset={SBH + 20}
+              style={styles.flex}
+          >
+          <View style={{ flex: 1, overflow: "hidden" }}>
+            {/* Área scrollable */}
+            <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            >
             <Text style={modalStyles.label}>Grupo:</Text>
             <View style={modalStyles.inputContainer}>
               <Text style={modalStyles.input}>{grupo}</Text>
@@ -108,17 +161,88 @@ const ModalPaciente = ({ visible, onClose, onAdd, paciente }) => {
                 placeholderTextColor="#888"
               />
             </View>
-          </ScrollView>
-
-          <View style={modalStyles.modalFooter}>
-            <TouchableOpacity style={modalStyles.fixedButton} onPress={handleSave}>
-              <Text style={buttonStyles.text}>Guardar</Text>
-            </TouchableOpacity>
+            </ScrollView>
           </View>
+          </KeyboardAvoidingView>
+         
+          {/* <TouchableOpacity style={styles.footer} onPress={onClose}>
+              <CustomButton title="Guardar" onPress={handleSave} />
+          </TouchableOpacity> */}
+{!keyboardVisible && (
+  <View style={styles.footer}>
+    <CustomButton title="Guardar" onPress={handleSave} />
+  </View>
+)}
         </View>
+        
       </View>
     </Modal>
   );
-};
+}
 
-export default ModalPaciente;
+const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  wrapper: {
+    width: width,
+    height: "95%",      // 60% de la pantalla
+    backgroundColor: "#873B8C",
+    borderTopLeftRadius:40,
+    borderTopRightRadius:40,
+    overflow: "hidden",
+    paddingTop: 60,
+  },
+  scrollWrapper: {
+    flex: 1,
+    width: "100%",
+    overflow: "hidden",            // recorta lo que quede arriba
+  },
+  scroll: {
+    flex: 1,
+    width: "100%",
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingBottom: FOOTER_HEIGHT + 16,
+    
+  },
+  item: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: "#eee",
+    borderRadius: 4,
+  },
+  itemText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  footer: {
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  footerText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  closeButtonContainer: {
+    position: "absolute",
+    top: 16,
+    right: 30,
+    zIndex: 10,
+  },
+  closeButtonText: {
+    fontSize: 30,
+    color: "#fff",
+    fontWeight: "bold",
+    lineHeight: 28,
+  },
+});
+

@@ -1,53 +1,126 @@
-import React, { useEffect, useState } from 'react';
+// app/_layout.tsx
+import React, { useEffect, useState, ReactNode } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View } from 'react-native';
-import { GlobalProvider } from '../GlobalProvider'; // Ajustá la ruta si es necesario
+import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 
-export default function Layout() {
+import { GlobalProvider } from '../GlobalProvider';
+/////////////////////////
+// 1) Error Boundary  //
+/////////////////////////
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+interface ErrorBoundaryState {
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { error: null };
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('ErrorBoundary caught:', error, info);
+    this.setState({ error });
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>¡Ups! Algo falló.</Text>
+          <Text style={styles.errorMsg}>{this.state.error.toString()}</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/////////////////////////
+// 2) Root Layout     //
+/////////////////////////
+export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const [loading, setLoading] = useState(true);
-  const [didNavigate, setDidNavigate] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // prevenimos que el splash auto-oquiera
+    SplashScreen.preventAutoHideAsync().catch(() => {});
+
     (async () => {
       try {
-        if (!didNavigate) {
-          const lastRoute = await AsyncStorage.getItem('@lastRoute');
-          const currentRoute = '/' + segments.join('/');
-          // Solo navegamos si la ruta actual es "/" y hay una última ruta guardada.
-          if (lastRoute && currentRoute === '/') {
-            // Esperamos un microtick antes de hacer replace
-            setTimeout(() => {
-              router.replace(lastRoute as any);
-              setDidNavigate(true);
-              // Para evitar que se repita, eliminamos la última ruta
-              AsyncStorage.removeItem('@lastRoute');
-            }, 0);
-          } else {
-            setDidNavigate(true);
-          }
+        const lastRoute = await AsyncStorage.getItem('@lastRoute');
+        const currentRoute = '/' + segments.join('/');
+
+        if (lastRoute && currentRoute === '/') {
+          await router.replace(lastRoute as any);
+          await AsyncStorage.removeItem('@lastRoute');
         }
-      } catch (error) {
-        console.error('Error al cargar la última ruta:', error);
+      } catch (e) {
+        console.warn('Error restaurando ruta:', e);
       } finally {
-        setLoading(false);
+        setIsReady(true);
+        SplashScreen.hideAsync().catch(() => {});
       }
     })();
-  }, [segments, didNavigate, router]);
+  }, [segments, router]);
 
-  if (loading) {
+  if (!isReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.loading}>
         <ActivityIndicator size="large" color="#873B8C" />
       </View>
     );
   }
 
-  return (
-    <GlobalProvider>
-      <Slot />
-    </GlobalProvider>
-  );
+   return (
+       <GlobalProvider>
+         <ErrorBoundary>
+           <RouteTracker />
+           <Slot />
+         </ErrorBoundary>
+       </GlobalProvider>
+     );
 }
+
+/////////////////////////
+// 3) Route Tracker   //
+/////////////////////////
+function RouteTracker() {
+  const segments = useSegments();
+
+  useEffect(() => {
+    AsyncStorage.setItem('@lastRoute', '/' + segments.join('/')).catch(e =>
+      console.warn('No pude guardar la ruta:', e)
+    );
+  }, [segments]);
+
+  return null;
+}
+
+/////////////////////////
+// 4) Styles          //
+/////////////////////////
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  errorMsg: {
+    textAlign: 'center',
+  },
+});

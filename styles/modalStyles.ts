@@ -1,14 +1,20 @@
 //"../styles/modalStyles"
-import { StyleSheet } from "react-native";
+import { StyleSheet, Platform, StatusBar } from "react-native";
+
+
+
+const STATUS_BAR_HEIGHT = StatusBar.currentHeight ?? 0;
+
 
 const modalStyles = StyleSheet.create({
   modalBackground: {
-    backgroundColor: "#873B8C",
-    flex: 1,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    padding: 20,
-    marginTop: 120,
+      backgroundColor: "#873B8C",
+      flex: 1,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
+      padding: 20,
+      justifyContent: "flex-start",    // ✅ pegar arriba
+      paddingTop: StatusBar.currentHeight || 20,  // ✅ debajo de la barra de estado
   },
   modalContainer: {
     flex: 1,
@@ -34,12 +40,11 @@ const modalStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   scrollContainer: {
-    flex: 1,
     width: "100%",
   },
   modalFooter: {
     position: "absolute",
-    bottom: 20,
+    bottom: 60,
     left: 20,
     right: 20,
     alignItems: "center",
@@ -65,17 +70,6 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     color: "#000",
   },
-  fixedButton: {
-  backgroundColor: '#46004B',
-  padding: 12,
-  borderRadius: 30,
-  alignItems: 'center',
-  justifyContent: 'center',
-  position: 'absolute',
-  bottom: 20,
-  left: 20,
-  right: 20,
-},
 });
 
 
