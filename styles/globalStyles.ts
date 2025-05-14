@@ -302,10 +302,20 @@ timerContainer: {
 },
 
 timerText: {
-  color: "#6A008A",
+  color: "#000",
   fontWeight: "bold",
   fontSize: 16,
 },
+
+timerBadge: {
+  backgroundColor: "#fff",
+  paddingHorizontal: 30,
+  paddingVertical: 6,
+  borderRadius: 8,
+  alignSelf: "center",    // para que quede centrado dentro del contenedor
+  marginVertical: 8,      // espaciado arriba/abajo
+},
+
 
 modalOverlay: {
   flex: 1,
@@ -375,7 +385,6 @@ modalButtonText: {
   },
   // globalStyles.js (fragmento)
 confirmContainerExtracciones: {
-  backgroundColor: "#873B8C",
   borderRadius: 12,
   padding: 12,
   marginTop: 8,

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useReducer } from "react";
-import { View, Text, TouchableOpacity, FlatList, Alert, SafeAreaView, AppState,Platform} from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Alert, SafeAreaView, AppState,Platform, StyleSheet} from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import styles from "../styles/globalStyles";
@@ -45,8 +45,9 @@ const ExtraccionesScreen = () => {
     setGrupos,
     setPacientes,
     setIntervalos,
+    sampleName,
+    setSampleName,
   } = useContext(GlobalContext);
-  const { sampleName } = useContext(GlobalContext);
   const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
   const [temporizadores, setTemporizadores] = useState({});
 
@@ -55,7 +56,33 @@ const ExtraccionesScreen = () => {
   // lo que provoca que React vuelva a renderizar el componente.
   const [, forceUpdate] = useReducer(x => x + 1, 0);
 
-
+  useEffect(() => {
+    if (!patientsWithIntervals.length) return;  // nada que recargar aún
+  
+    const loadPersisted = async () => {
+      try {
+        const recargados = await Promise.all(
+          patientsWithIntervals.map(async p => {
+            const [inicio, stored] = await Promise.all([
+              AsyncStorage.getItem(`inicio-${p.id}`),
+              AsyncStorage.getItem(`intervalosTomados-${p.id}`)
+            ]);
+            return {
+              ...p,
+              ...(inicio   ? { inicio }    : {}),
+              ...(stored   ? { intervalos: JSON.parse(stored) } : {}),
+            };
+          })
+        );
+        setPatientsWithIntervals(recargados);
+      } catch (e) {
+        console.error("Error cargando persistencia:", e);
+      }
+    };
+  
+    loadPersisted();
+  }, [patientsWithIntervals]);
+  
   useEffect(() => {
     const interval = setInterval(() => {
       forceUpdate();
@@ -282,6 +309,26 @@ const ExtraccionesScreen = () => {
     const paciente = patientsWithIntervals.find((p) => p.id === idPaciente);
     if (!paciente) return;
   
+    // —————— 1) Loguear el inicio ——————
+    const now = new Date().toISOString();
+    console.log(`▶️ [${paciente.nombre}] Inicio a ${now}`);
+  
+    // —————— 2) Guardar el inicio en el paciente ——————
+    setPatientsWithIntervals(prev =>
+      prev.map(p =>
+        p.id === idPaciente
+          ? { 
+              ...p, 
+              inicio: now   // campo que luego usarás en exportarMatrices
+            }
+          : p
+      )
+    );
+    
+     // Persistir la hora de inicio
+     AsyncStorage.setItem(`inicio-${idPaciente}`, now);
+
+    // —————— 3) Lógica existente de temporizadores ——————
     if (intervalIndex >= paciente.intervalos.length) {
       setTemporizadores((prev) => ({
         ...prev,
@@ -392,12 +439,10 @@ const ExtraccionesScreen = () => {
           const currentIndex = temporizadores[idPaciente]?.intervalIndex ?? 0;
           const nuevosIntervalos = paciente.intervalos.map((intervalo, index) =>
             index === currentIndex
-              ? {
-                  ...intervalo,
-                  outcome,
-                  tiempoRespuesta,
-                }
-              : intervalo
+            ? { ...intervalo, 
+            outcome,
+            tiempoRespuesta /* que ahora es "HH:MM:SS" */ }
+            : intervalo
           );
   
           AsyncStorage.setItem(
@@ -417,123 +462,238 @@ const ExtraccionesScreen = () => {
   };
   
   const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
-    const zeroTime = temporizadores[idPaciente]?.zeroReachedAt;
-    let tiempoRespuesta = null;
+    // 1️⃣ Calculamos la hora exacta de respuesta una sola vez
+    const horaResp = new Date().toLocaleTimeString();
   
+    // 2️⃣ Si ya llegó a cero, registramos el resultado de este intervalo
+    const zeroTime = temporizadores[idPaciente]?.zeroReachedAt;
     if (zeroTime) {
-      tiempoRespuesta = Math.floor((Date.now() - zeroTime) / 1000);
-      console.log(`⏰ Paciente ${idPaciente} tardó ${tiempoRespuesta} segundos en responder`);
+      const nombre = patientsWithIntervals.find(p => p.id === idPaciente)?.nombre;
+      const idx    = temporizadores[idPaciente].intervalIndex + 1;
+      console.log(`⏰ [${nombre}] Intervalo ${idx} respuesta a ${horaResp}`);
+      await registrarResultadoIntervalo(idPaciente, outcome, horaResp);
     }
   
-    await registrarResultadoIntervalo(idPaciente, outcome, tiempoRespuesta);
-  
+    // 3️⃣ Traemos el estado actual del temporizador
     const data = temporizadores[idPaciente];
     if (!data) return;
   
+    // 4️⃣ Preparamos el índice del siguiente intervalo
     const nextIndex = data.intervalIndex + 1;
-    const paciente = patientsWithIntervals.find((p) => p.id === idPaciente);
+    const paciente  = patientsWithIntervals.find(p => p.id === idPaciente);
+  
+    // 5️⃣ Si era el último intervalo, marcamos como finished y salimos
     if (!paciente || nextIndex >= paciente.intervalos.length) {
-      const actualizados = paciente.intervalos.map((intervalo, index) =>
-        index === data.intervalIndex
-          ? { ...intervalo, outcome, tiempoRespuesta }
-          : intervalo
-      );
-      await AsyncStorage.setItem(
-        `intervalosTomados-${paciente.id}`,
-        JSON.stringify(actualizados)
-      );
-      
-      setTemporizadores((prev) => ({
+      // 5.1️⃣ Registramos de nuevo el resultado del último intervalo
+      await registrarResultadoIntervalo(idPaciente, outcome, horaResp);
+  
+      // 5.2️⃣ Marcamos el temporizador como terminado en memoria
+      setTemporizadores(prev => ({
         ...prev,
         [idPaciente]: {
           ...prev[idPaciente],
-          activo: false,
-          tiempo: 0,
-          finished: true,
-          allFinished: true,
+          activo:     false,
+          tiempo:     0,
+          finished:   true,
+          allFinished:true,
         },
       }));
-      
-      AsyncStorage.getItem(`temporizador-${idPaciente}`).then((savedStr) => {
-        if (savedStr) {
-          const saved = JSON.parse(savedStr);
-          saved.finished = true;
-          saved.allFinished = true;
-          AsyncStorage.setItem(`temporizador-${idPaciente}`, JSON.stringify(saved));
-        }
-      });
-      
+  
+      // 5.3️⃣ Persistimos el estado "finished" del temporizador
+      const savedStr = await AsyncStorage.getItem(`temporizador-${idPaciente}`);
+      if (savedStr) {
+        const saved = JSON.parse(savedStr);
+        saved.finished    = true;
+        saved.allFinished = true;
+        await AsyncStorage.setItem(
+          `temporizador-${idPaciente}`,
+          JSON.stringify(saved)
+        );
+      }
+  
       return;
     }
   
+    // 6️⃣ Si no era el último, arrancamos el siguiente
     iniciarIntervalo(idPaciente, nextIndex);
   };
   
-  const exportarMatriz = async () => {
-    const cabecera = [
-      "Nombre",
-      "Edad",
-      "Sexo",
-      "Peso",
-      "Descripción",
-      "Grupo",
-      ...intervalos.map((_, i) => `Intervalo ${i + 1}`)
+  
+  // const exportarMatriz = async () => {
+  //   const cabecera = [
+  //     "Nombre",
+  //     "Edad",
+  //     "Sexo",
+  //     "Peso",
+  //     "Descripción",
+  //     "Grupo",
+  //     ...intervalos.map((_, i) => `Intervalo ${i + 1}`)
+  //   ];
+  
+  //   const filas = patientsWithIntervals.map((p) => {
+  //     const fila = [
+  //       p.nombre,
+  //       p.edad,
+  //       p.sexo,
+  //       p.peso,
+  //       p.descripcion,
+  //       p.grupoName
+  //     ];
+    
+  //     p.intervalos.forEach((i) => {
+  //       const symbol = i.outcome === "1" ? "si" : "no";
+  //       const suffix = i.tiempoRespuesta != null
+  //         ? ` (${formatTiempo(i.tiempoRespuesta)})`
+  //         : "";
+  //       fila.push(`${symbol}${suffix}`);
+  //     });
+    
+  //     return fila;
+  //   });
+    
+  
+  //   const matriz = [cabecera, ...filas];
+  //   const csvString = matriz.map((fila) => fila.join(",")).join("\n");
+  
+  //   const baseName = sampleName.replace(/\s+/g, "");
+  //   const fileUri  = FileSystem.documentDirectory + `${baseName}.csv`;
+  
+  //   await FileSystem.writeAsStringAsync(fileUri, csvString, { encoding: FileSystem.EncodingType.UTF8 });
+  
+  //   try {
+  //     await Sharing.shareAsync(fileUri, {
+  //       mimeType: "text/csv",
+  //       dialogTitle: "Compartir matriz CSV",
+  //     });
+  //   } catch (error) {
+  //     console.error("Error al compartir CSV:", error);
+  //   }
+  
+  //   try {
+  //     await AsyncStorage.multiRemove([
+  //       "gruposData",
+  //       "pacientesData",
+  //       "intervalosData",
+  //       "intervalosTomados",
+  //       ...patientsWithIntervals.map((p) => `temporizador-${p.id}`),
+  //     ]);
+  //     setGrupos([]);
+  //     setPacientes([]);
+  //     setIntervalos([]);
+  //     setSampleName("");    
+  //     router.push("/");
+  //   } catch (err) {
+  //     console.error("Error al limpiar persistencia:", err);
+  //   }
+  // };
+  const exportarMatrices = async () => {
+
+    console.log("📋 exportarMatrices | patientsWithIntervals:", patientsWithIntervals);
+    // ————————————————————————————
+    // 1) CSV “Datos completos”
+    // ————————————————————————————
+  
+    // 1.1) Cabecera y filas de datos
+    const cabeceraDatos = ["Nombre","Edad","Sexo","Peso","Descripción","Grupo"];
+    const filasDatos = patientsWithIntervals.map(p => [
+      p.nombre,
+      p.edad,
+      p.sexo,
+      p.peso,
+      p.descripcion,
+      p.grupoName
+    ]);
+  
+    // 1.2) String CSV y URI
+    const csvDatos = [ cabeceraDatos, ...filasDatos ]
+      .map(f => f.join(","))
+      .join("\n");
+    const baseName = sampleName.replace(/\s+/g, "");
+    const uriDatos = FileSystem.documentDirectory + `${baseName}_datos.csv`;
+  
+    // 1.3) Escribir y compartir “Datos completos”
+    await FileSystem.writeAsStringAsync(uriDatos, csvDatos, { encoding: FileSystem.EncodingType.UTF8 });
+    await Sharing.shareAsync(uriDatos, {
+      mimeType:   "text/csv",
+      dialogTitle:"Compartir datos CSV"
+    });
+  
+    // ————————————————————————————
+    // 2) CSV “Muestreo” (solo outcomes)
+    // ————————————————————————————
+  
+    // 2.1) Derivar el array de duraciones de cada intervalo
+    //     asumo intervalos = [{ duration: 5 }, { duration: 10 }, …]
+    const labels = intervalos.map(i => {
+      const h = String(i.tiempo.hours).padStart(2, '0');
+      const m = String(i.tiempo.minutes).padStart(2, '0');
+      return `${h}:${m}`;            // por ejemplo "00:01"
+    });
+  
+    // 2.2) Armar el encabezado
+    //     ["identificador","inicio","t1 5 min","t2 10 min",…]
+    const headerMuestreo = [
+      "identificador",
+      "inicio",
+      ...labels.map((time, idx) => `t${idx+1} ${time}`)
     ];
   
-    const filas = patientsWithIntervals.map((p) => {
-      const fila = [
-        p.nombre,
-        p.edad,
-        p.sexo,
-        p.peso,
-        p.descripcion,
-        p.grupoName
-      ];
-    
-      p.intervalos.forEach((i) => {
+    // 2.3) Construir las filas de muestreo
+    //     Cada fila: [p.id, p.startTime, resultado1, resultado2, …]
+    const filasMuestreo = patientsWithIntervals.map(p => {
+      const identificador = p.nombre;             // o p.nombre, lo que prefieras
+      const inicio = p.inicio
+        ? new Date(p.inicio).toLocaleTimeString()
+        : "";
+  
+      const outcomes = p.intervalos.map(i => {
         const symbol = i.outcome === "1" ? "si" : "no";
-        const suffix = i.tiempoRespuesta != null
-          ? ` (${formatTiempo(i.tiempoRespuesta)})`
-          : "";
-        fila.push(`${symbol}${suffix}`);
+         // i.tiempoRespuesta ya es un string "HH:MM:SS"
+        const suffix = i.tiempoRespuesta
+         ? ` (${i.tiempoRespuesta})`
+         : "";
+        return `${symbol}${suffix}`;
       });
-    
-      return fila;
+  
+      return [ identificador, inicio, ...outcomes ];
     });
-    
   
-    const matriz = [cabecera, ...filas];
-    const csvString = matriz.map((fila) => fila.join(",")).join("\n");
+    // 2.4) Generar el CSV de muestreo y URI
+    const matrizMuestreo = [ headerMuestreo, ...filasMuestreo ];
+    const csvMuestreo = matrizMuestreo
+      .map(fila => fila.join(","))
+      .join("\n");
+    const uriMuestreo = FileSystem.documentDirectory + `${baseName}_muestreo.csv`;
   
-    const fileUri = FileSystem.documentDirectory + "matriz.csv";
-    await FileSystem.writeAsStringAsync(fileUri, csvString, { encoding: FileSystem.EncodingType.UTF8 });
+    // 2.5) Escribir y compartir “Muestreo”
+    await FileSystem.writeAsStringAsync(uriMuestreo, csvMuestreo, { encoding: FileSystem.EncodingType.UTF8 });
+    await Sharing.shareAsync(uriMuestreo, {
+      mimeType:   "text/csv",
+      dialogTitle:"Compartir muestreo CSV"
+    });
   
-    try {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: "text/csv",
-        dialogTitle: "Compartir matriz CSV",
-      });
-    } catch (error) {
-      console.error("Error al compartir CSV:", error);
-    }
-  
-    try {
-      await AsyncStorage.multiRemove([
-        "gruposData",
-        "pacientesData",
-        "intervalosData",
-        "intervalosTomados",
-        ...patientsWithIntervals.map((p) => `temporizador-${p.id}`),
-      ]);
-      setGrupos([]);
-      setPacientes([]);
-      setIntervalos([]);
-      router.push("/");
-    } catch (err) {
-      console.error("Error al limpiar persistencia:", err);
-    }
-  };
+    // ————————————————————————————
+    // 3) Limpiar persistencia y volver al Home
+    // ————————————————————————————
+    await AsyncStorage.multiRemove([
+  "gruposData",
+  "pacientesData",
+  "intervalosData",
+  // borramos cada key de intervalosTomados-<id>
+  ...patientsWithIntervals.map(p => `intervalosTomados-${p.id}`),
+  // borramos cada key de inicio-<id>
+  ...patientsWithIntervals.map(p => `inicio-${p.id}`),
+  // si seguís usando temporizador-(id) para otra cosa, lo dejás
+  ...patientsWithIntervals.map(p => `temporizador-${p.id}`),
+]);
 
+    setGrupos([]);
+    setPacientes([]);
+    setIntervalos([]);
+    setSampleName("");
+    router.replace("/");
+  };
+  
   
   const renderPaciente = ({ item: paciente }) => {
     const temp = temporizadores[paciente.id];
@@ -547,12 +707,22 @@ const ExtraccionesScreen = () => {
     const grupo = grupos.find(g => g.name === paciente.grupoName);
     const bgColor = grupo?.color ?? "#EEE";
 
+    // Índice del intervalo actual (0-based)
+//const currentIndex = temporizadores[paciente.id]?.intervalIndex ?? 0;
+
+// Label fijo “HH:MM” sacado de tu definición de intervalos
+const intervaloActual = intervalos[currentIndex] || { tiempo: { hours: '00', minutes: '00' } };
+const hh = String(intervaloActual.tiempo.hours).padStart(2, '0');
+const mm = String(intervaloActual.tiempo.minutes).padStart(2, '0');
+const labelTime = `${hh}:${mm}`;
+
+
     return (
       <View style={[styles.extraccionContainerE, { backgroundColor: bgColor }]}>
-        <Text style={styles.muestraText}>{muestraTexto}</Text>
+        <Text style={styles.muestraText}>{muestraTexto} – {labelTime}</Text>
         <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%" }}>
           <View style={styles.infoContainerE}>
-            <Text style={styles.labelE}>Paciente</Text>
+            <Text style={styles.labelE}>Individuo</Text>
             <View style={styles.inputBoxE}>
               <Text style={styles.inputTextE}>{paciente.nombre || "Sin nombre"}</Text>
             </View>
@@ -568,7 +738,7 @@ const ExtraccionesScreen = () => {
           ) : (
             !temp?.activo &&
             !temp?.finished && (
-              <TouchableOpacity onPress={() => activarTemporizador(paciente.id)}>
+              <TouchableOpacity onPress={() => iniciarIntervalo(paciente.id, 0)}>
                 <MaterialCommunityIcons name="play-circle-outline" size={32} color="#fff" />
               </TouchableOpacity>
             )
@@ -576,7 +746,8 @@ const ExtraccionesScreen = () => {
         </View>
 
         {temp?.activo && !temp?.finished && (
-          <View style={styles.timerContainer}>
+         <View style={styles.timerContainer}>
+ 
             <Text style={styles.timerText}>
               tiempo restante: {minutosRestantes.toString().padStart(2, "0")}:
               {segundosRestantes.toString().padStart(2, "0")}
@@ -586,20 +757,46 @@ const ExtraccionesScreen = () => {
 
         {temp?.finished && !temp?.allFinished && (
           <View style={styles.confirmContainerExtracciones}>
-            <Text style={styles.timerText}>
-              tiempo de retardo: {formatRetardo(temp.zeroReachedAt)}
-            </Text>
+            <View style={styles.timerBadge}>
+              <Text style={styles.timerText}>
+                tiempo de retardo: {formatRetardo(temp.zeroReachedAt)}
+              </Text>
+            </View>
             <View style={styles.buttonsRowExtracciones}>
               <TouchableOpacity
-                style={styles.confirmButtonExtracciones}
+                  style={[
+                    styles.confirmButtonExtracciones,
+                    { backgroundColor: bgColor }
+                  ]}
                 onPress={() => iniciarSiguienteIntervalo(paciente.id, "1")}
               >
+                 {/* Capa negra al 20% para oscurecer */}
+              <View style={{
+                  position: "absolute",
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  borderRadius: 8
+                }}
+              />
+
                 <MaterialCommunityIcons name="check" size={24} color="#fff" />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.cancelButtonExtracciones}
+                  style={[
+                    styles.cancelButtonExtracciones,
+                    { backgroundColor: bgColor }
+                  ]}
                 onPress={() => iniciarSiguienteIntervalo(paciente.id, "0")}
               >
+                 {/* Capa negra al 20% para oscurecer */}
+              <View style={{
+                  position: "absolute",
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  borderRadius: 8
+                }}
+              />
+
                 <MaterialCommunityIcons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -632,7 +829,7 @@ const ExtraccionesScreen = () => {
     <View style={styles.extraccionesScreenContainer}>
       <SafeAreaView >
         <View style={styles.headerContainerE}>
-          <Text style={styles.headerText}>Próximas Extracciones de </Text>
+          <Text style={styles.headerText}>Próximas Extracciones : </Text>
           <Text style={styles.headerText}>{sampleName} </Text>
         </View>
       </SafeAreaView>
@@ -649,15 +846,10 @@ const ExtraccionesScreen = () => {
           <Text style={styles.botonesI}>VOLVER</Text>
         </TouchableOpacity>
         
-        {/* {algunTemporizadorIniciado && allPatientsFinished && (
-          <TouchableOpacity style={buttonStyles.button} onPress={exportarMatriz}>
-            <Text style={styles.botonesD}>Terminar</Text>
-          </TouchableOpacity>
-        )} */}
         {allPatientsFinished && (
-  <TouchableOpacity style={buttonStyles.button} onPress={exportarMatriz}>
-    <Text style={styles.botonesD}>Terminar</Text>
-  </TouchableOpacity>
+        <TouchableOpacity style={buttonStyles.button} onPress={exportarMatrices}>
+          <Text style={styles.botonesD}>Terminar</Text>
+        </TouchableOpacity>
 )}
 
       </View>

@@ -43,7 +43,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const [isReady, setIsReady] = useState(false);
+  //const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady]       = useState(false);
+  const [lastRoute, setLastRoute]   = useState<string | null>(null);
+
 
   useEffect(() => {
     // prevenimos que el splash auto-oquiera

@@ -16,11 +16,16 @@ import { GlobalContext } from "../GlobalProvider";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { setSampleName } = useContext(GlobalContext);
-
+  const { sampleName, setSampleName } = useContext(GlobalContext);
   const [localName, setLocalName] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+      if (sampleName) {
+        router.replace("grupo");
+      }
+    }, [sampleName]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () =>
@@ -40,6 +45,16 @@ export default function HomeScreen() {
     setModalVisible(false);
     router.push("grupo");
   };
+
+  if (sampleName === null) {
+    return null;
+  }
+  
+  // 2) Si sampleName no es cadena vacía → ya hay un nombre guardado, redirigimos
+  if (sampleName !== "") {
+    router.replace("grupo");
+    return null;
+  }
 
   return (
     <View style={styles.container}>

@@ -1,6 +1,6 @@
 // app/paciente.tsx
 import React, { useEffect } from 'react';
-import PacienteScreen from '../screens/PacienteScreen';
+import PacienteScreen from '../screens/IndividuoScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSegments } from 'expo-router';
 

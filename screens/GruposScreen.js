@@ -71,7 +71,7 @@ const GrupoScreen = () => {
     const color = item.color ?? GROUP_COLORS[index % GROUP_COLORS.length];
     return (
       <View style={[styles.grupoContainer, { backgroundColor: color }]}>
-        <Text style={[styles.grupoLabel, { color: "#fff" }]}>Grupo</Text>
+        <Text style={[styles.grupoLabel, { color: "#fff" }]}>Grupos</Text>
         <View style={styles.grupoContent}>
           <Text style={[styles.grupoName, { color: "#000" }]}>{item.name}</Text>
           <View style={{ flexDirection: "row" }}>
@@ -79,7 +79,7 @@ const GrupoScreen = () => {
               style={styles.editButton}
               onPress={() => handleEditGroup(item)}
             >
-              <MaterialIcons name="edit" size={24} color="#fff" />
+              <MaterialIcons name="edit" size={24} color={color} />
             </TouchableOpacity>
             <TouchableOpacity
               style={{
@@ -107,7 +107,7 @@ const GrupoScreen = () => {
       </View>
 
       <View style={styles.fondoApp}>
-        <Text style={styles.main}>GRUPO</Text>
+        <Text style={styles.main}>GRUPOS EXPERIMENTALES </Text>
         <FlatList
           data={grupos}
           keyExtractor={(item) => item.id}

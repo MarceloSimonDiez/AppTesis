@@ -14,7 +14,7 @@ export const GlobalProvider = ({ children }) => {
   const [pacientes, setPacientes] = useState([]);
   const [intervalos, setIntervalos] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [sampleName, setSampleName] = useState("");
+  const [sampleName, setSampleName] = useState(null);
   
   const addGroup = (name, description, cantidadPacientes, color) => {
     const newGroup = {
@@ -42,8 +42,25 @@ export const GlobalProvider = ({ children }) => {
 
 
   useEffect(() => {
-    AsyncStorage.setItem("sampleName", sampleName);
+     if (sampleName !== null) {
+         AsyncStorage.setItem("sampleName", sampleName);
+       }      
   }, [sampleName]);
+
+   useEffect(() => {
+       const loadSampleName = async () => {
+         try {
+             const storedName = await AsyncStorage.getItem("sampleName");
+                 // si no hay nada, almacenamos string vacío para indicar que ya terminamos de leer
+              setSampleName(storedName ?? "");
+         } catch (e) {
+           console.error("❌ Error al cargar sampleName:", e);
+           setSampleName("");
+         }
+       };
+       loadSampleName();
+     }, []);
+
   
   useEffect(() => {
     const loadGrupos = async () => {

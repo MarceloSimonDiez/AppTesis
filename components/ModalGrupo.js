@@ -105,7 +105,7 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
               <MaterialIcons name="edit" size={20} color="#888" />
             </View>
 
-            <Text style={modalStyles.label}>Cantidad de Pacientes:</Text>
+            <Text style={modalStyles.label}>Cantidad de Individuos:</Text>
             <View style={modalStyles.inputContainer}>
               <TextInput
                 style={modalStyles.input}

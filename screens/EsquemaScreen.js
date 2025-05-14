@@ -81,7 +81,7 @@ const abrirModal = (id) => {
       <Text style={styles.headerText}>{sampleName}</Text>
     </View>
     <View style={styles.fondoApp}>
-      <Text style={styles.main}>ESQUEMA</Text>
+      <Text style={styles.main}>ESQUEMA DE MUESTREO</Text>
       <FlatList
         data={intervalos}
         keyExtractor={(item) => item.id}

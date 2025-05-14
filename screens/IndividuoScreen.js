@@ -14,7 +14,7 @@ const PacienteScreen = () => {
   const { dataLoaded, grupos, pacientes, setPacientes } = useContext(GlobalContext);
   const { sampleName } = useContext(GlobalContext);
 
-  
+
 useEffect(() => {
   if (dataLoaded && grupos.length > 0) {
     const pacientesGenerados = grupos.flatMap((grupo) =>
@@ -94,10 +94,10 @@ useEffect(() => {
   
       <View style={{ flex: 1, marginRight: 12 }}>
         <Text style={{ fontSize: 14, color: "white", fontWeight: "600", marginBottom: 4 }}>
-          Paciente
+          Identificador
         </Text>
         <View style={{ backgroundColor: "white", borderRadius: 8, padding: 8 }}>
-          <Text style={{ color: "#333" }}>{item.nombre || "Sin nombre"}</Text>
+          <Text style={{ color: "#333" }}>{item.nombre || "Sin indentificador"}</Text>
         </View>
       </View>
       <View style={{ flex: 1, marginRight: 10 }}>
@@ -118,7 +118,7 @@ useEffect(() => {
       <Text style={styles.headerText}>{sampleName}</Text>
     </View>
     <View style={styles.fondoApp}>
-      <Text style={styles.main}>PACIENTE</Text>
+      <Text style={styles.main}>INDIVIDUOS</Text>
       <FlatList
         data={pacientes}
         keyExtractor={(item) => item.id}
