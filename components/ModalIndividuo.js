@@ -15,8 +15,8 @@ import {
   Keyboard,
 } from "react-native";
 import modalStyles from "../styles/modalStyles";
-import CustomButton from "./ButtonAgregar";
-
+import buttonStyles from '../styles/buttonStyles';
+import { MaterialIcons } from "@expo/vector-icons";
 
 const { width, height } = Dimensions.get("window");
 const SBH = StatusBar.currentHeight || 0;
@@ -81,10 +81,9 @@ useEffect(() => {
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.wrapper}>
-
            <View style={styles.closeButtonContainer}>
             <TouchableOpacity onPress={onClose}>
-               <Text style={styles.closeButtonText}>×</Text>
+              <MaterialIcons name="close" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
           <KeyboardAvoidingView
@@ -105,13 +104,13 @@ useEffect(() => {
               <Text style={modalStyles.input}>{grupo}</Text>
             </View>
 
-            <Text style={modalStyles.label}>Nombre:</Text>
+            <Text style={modalStyles.label}>Identificador:</Text>
             <View style={modalStyles.inputContainer}>
               <TextInput
                 style={modalStyles.input}
                 value={nombre}
                 onChangeText={setNombre}
-                placeholder="Ingrese nombre"
+                placeholder="Ingrese identificador"
                 placeholderTextColor="#888"
               />
             </View>
@@ -165,16 +164,18 @@ useEffect(() => {
           </View>
           </KeyboardAvoidingView>
          
-          {/* <TouchableOpacity style={styles.footer} onPress={onClose}>
-              <CustomButton title="Guardar" onPress={handleSave} />
-          </TouchableOpacity> */}
-{!keyboardVisible && (
-  <View style={styles.footer}>
-    <CustomButton title="Guardar" onPress={handleSave} />
-  </View>
-)}
+          {!keyboardVisible && (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={buttonStyles.button}
+                onPress={handleSave}
+                activeOpacity={0.7}
+                >
+                <Text style={buttonStyles.text}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+          )}
         </View>
-        
       </View>
     </Modal>
   );
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     width: width,
-    height: "95%",      // 60% de la pantalla
+    height: "88%",      
     backgroundColor: "#873B8C",
     borderTopLeftRadius:40,
     borderTopRightRadius:40,

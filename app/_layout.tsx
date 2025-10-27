@@ -3,7 +3,7 @@ import React, { useEffect, useState, ReactNode } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
+import { InteractionManager,BackHandler, ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 
 import { GlobalProvider } from '../GlobalProvider';
 /////////////////////////
@@ -70,6 +70,24 @@ export default function RootLayout() {
     })();
   }, [segments, router]);
 
+    // — Interceptar botón físico de “back” y llevar siempre a “/”
+useEffect(() => {
+  const onHardwareBackPress = () => {
+    // Si segments.length > 0, significa que no estamos en “/”
+    if (segments.length > 0) {
+      router.replace('/');
+    }
+    return true;
+  };
+  BackHandler.addEventListener('hardwareBackPress', onHardwareBackPress);
+  return () => {
+    BackHandler.removeEventListener('hardwareBackPress', onHardwareBackPress);
+  };
+}, [router, segments]);
+
+
+
+
   if (!isReady) {
     return (
       <View style={styles.loading}>
@@ -78,14 +96,13 @@ export default function RootLayout() {
     );
   }
 
-   return (
-       <GlobalProvider>
-         <ErrorBoundary>
-           <RouteTracker />
-           <Slot />
-         </ErrorBoundary>
-       </GlobalProvider>
-     );
+  return (
+    <GlobalProvider>
+      <ErrorBoundary>
+          <Slot />
+      </ErrorBoundary>
+    </GlobalProvider>
+  );
 }
 
 /////////////////////////

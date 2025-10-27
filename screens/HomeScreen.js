@@ -1,18 +1,18 @@
 // screens/HomeScreen.js
 import React, { useState, useEffect, useContext } from "react";
-import {
-  View,
-  Text,
-  Modal,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Keyboard,
-} from "react-native";
+import {View, Text, Modal, TextInput, TouchableOpacity, StyleSheet, Keyboard, SafeAreaView, Pressable, Image, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import CustomButton from "../components/ButtonAgregar";
 // Ajustá la ruta si tu GlobalProvider.js está en otra carpeta
 import { GlobalContext } from "../GlobalProvider";
+import buttonStyles from '../styles/buttonStyles';
+
+const LOGO = require("../assets/images/iconoInicio.png");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const H_MARGIN = 10;    // margen horizontal total que querés restar
+const V_MARGIN = 50;    // margen vertical total
+
+
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -20,6 +20,7 @@ export default function HomeScreen() {
   const [localName, setLocalName] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
 
   useEffect(() => {
       if (sampleName) {
@@ -57,14 +58,17 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {!keyboardVisible && (
-        <CustomButton
-          title="INICIAR"
-          onPress={() => setModalVisible(true)}
-          style={{ backgroundColor: "#873B8C" }}
-        />
-      )}
+    <SafeAreaView style={styles.safeArea}>
+      {/* Pantalla completa clickeable */}
+      <Pressable
+        style={styles.pressableFull}
+        onPress={() => !keyboardVisible && setModalVisible(true)}
+        android_ripple={{ color: "transparent", borderless: true }}
+      >
+        <View style={styles.logoContainer}>
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+        </View>
+      </Pressable>
 
       <Modal
         transparent
@@ -79,7 +83,7 @@ export default function HomeScreen() {
               style={styles.modalInput}
               value={localName}
               onChangeText={setLocalName}
-              placeholder="Ej: Muestreo 1"
+              placeholder="Nombre de Muestreo"
               placeholderTextColor="#999"
               autoFocus
             />
@@ -93,17 +97,11 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+  </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+const styles = StyleSheet.create({  
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -139,5 +137,29 @@ const styles = StyleSheet.create({
   continueText: {
     color: "#fff",
     fontSize: 16,
+  },
+    safeArea: {
+    flex: 1,
+    backgroundColor: "#882D99",
+  },
+  pressableFull: {
+    flex: 1,
+    backgroundColor: "#822D99",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    width: 120,
+    height: 120,
+  },
+    logoContainer: {
+    width: SCREEN_W - H_MARGIN,    
+    height: SCREEN_H - V_MARGIN,
+    borderRadius: 20,
+    backgroundColor:  "#822D99",
+    alignItems: "center",
+    justifyContent: "center",
+    // elevación Android
+    elevation: 8,
   },
 });

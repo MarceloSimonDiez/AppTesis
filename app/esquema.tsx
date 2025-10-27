@@ -4,7 +4,7 @@ import EsquemaScreen from '../screens/EsquemaScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSegments } from 'expo-router';
 
-export default function GrupoRoute() {
+export default function EsquemaRoute() {
   const segments = useSegments(); // Por ejemplo: ['grupo']
 
   useEffect(() => {

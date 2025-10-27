@@ -4,7 +4,7 @@ import ExtraccionesScreen from '../screens/ExtraccionesScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSegments } from 'expo-router';
 
-export default function GrupoRoute() {
+export default function ExtraccionesRoute() {
   const segments = useSegments(); // Por ejemplo: ['grupo']
 
   useEffect(() => {

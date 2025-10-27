@@ -17,15 +17,10 @@ const modalStyles = StyleSheet.create({
       paddingTop: StatusBar.currentHeight || 20,  // ✅ debajo de la barra de estado
   },
   modalContainer: {
-    flex: 1,
     backgroundColor: "#873B8C",
-    borderRadius: 30,
+    borderRadius: 40,
     padding: 20,
-    width: "100%",
-    shadowColor: "#873B8C",
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 100,
+    marginTop: 40,       
   },
   modalHeader: {
     flexDirection: "row",

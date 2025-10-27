@@ -1,17 +1,38 @@
 {
-  "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "jsx": "react-jsx",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
     "strict": true,
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "screens/**/*.js",
+    "screens/**/*.ts",
+    "screens/**/*.tsx",
+    "components/**/*.js",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "services/**/*.js",
+    "services/**/*.ts",
+    "services/**/*.tsx",
+    "index.js",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "app/grupo.js", "index.js", "app/navegacion.js", "screens/HomeScreen.js"  ]
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js"
+  ],
+  "extends": "expo/tsconfig.base"
 }

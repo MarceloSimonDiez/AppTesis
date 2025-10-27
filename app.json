@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "my-app",
-    "slug": "my-app",
+    "name": "PK-Timer",
+    "slug": "PK-Timer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/iconoApp.png",
-    "scheme": "myapp",
+    "scheme":"pktimer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -17,7 +17,28 @@
         "foregroundImage": "./assets/images/iconoApp.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.simoondiez.myapp"
+      "package": "com.simoondiez.myapp",
+      "permissions": [
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "myapp",
+              "host": "redirect"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -27,6 +48,7 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
@@ -53,7 +75,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "c1eb18b4-f981-425e-83b2-da6578f8696f"
+        "projectId": "8e93a633-b286-465b-9c41-750ca130e28b"
       }
     },
     "owner": "simoondiez"

@@ -1,56 +1,85 @@
-//"../styles/globalStyles"
+"../styles/globalStyles"
 import { StyleSheet, } from 'react-native';
-import { Dimensions } from 'react-native';
-
-const { height, width } = Dimensions.get('window');
+import { Dimensions} from 'react-native';
+import {
+  responsiveWidth as rw,
+  responsiveHeight as rh,
+  responsiveFontSize as rf,
+} from 'react-native-responsive-dimensions';
+//const { height, width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
+
+      // 1) Contenedor del “+ GRUPO”
+  addGrupoContainer: {
+    flexDirection: "row",
+    alignItems: "center",            
+  },
+
+  // 2) Círculo con el “+”
+  addGrupoButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#873B8C",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // 3) Texto “GRUPO”
+  addGrupoText: {
+    marginLeft: 8,             // un número fijo
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#873B8C",
+  },
 
     // estilos genéricos para cada pantalla
     container: {
       flex: 1,
-      backgroundColor: "#fff",
+      backgroundColor: '#fff',
     },
-  
     header: {
       height: 60,
-      justifyContent: "center",
+      justifyContent: "space-between",   // empuja el título a la izquierda y el +GRUPO a la derecha
       alignItems: "center",
       borderBottomWidth: 1,
-      borderBottomColor: "#ddd",
+      borderBottomColor: "#fff",
+      paddingHorizontal: 16, 
     },
-  
+
     main: {
-      fontFamily: 'Roboto_400Regular',
-      color: '#fff',
-      fontSize: 24,
-      fontWeight: 'bold',
-      marginTop: 20, // Añadir espacio superior si es necesario
+      fontFamily: 'Roboto_400Bold',
+      color: '#333333',
+      fontSize: rf(2.6),         
+      lineHeight: rf(3.8),       
+      letterSpacing: 1,
+      marginBottom: rh(2),       
       textAlign: 'center',
     },
     fondoApp: {
-      backgroundColor: "#873B8C",
+      backgroundColor: "#0000",
       flex: 1,
       marginTop: 0,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
-      padding: 20,
+      padding: 2,
     },
     intervalContainer: {
       marginBottom: 16,
     },
+      headerContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+  },
+
   //estilos de los container de los intervalos de tiempo de los esquemas
     intervaloContainer: {
       backgroundColor: "#D09CFA", // Fondo rosado
       borderRadius: 12,
       padding: 12,
       marginBottom: 16,
-  },
-
-  headerContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
   },
 
     intervalHeader: {
@@ -97,50 +126,13 @@ const styles = StyleSheet.create({
   
     //esto es por el momento, deja los botones volver y siguiente en 
     // parte inferior 
-    botonesContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between', // Alinea los botones a los extremos
-      alignItems: 'center', // Asegura la alineación vertical
-      position: 'absolute',
-      bottom: 20, // Posición en la parte inferior
-      left: 16,
-      right: 16,
-    },
+
     botonesD: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: 'white', // Si quieres poner un color
+      color: '#000', // Si quieres poner un color
     },
-    // Estilos para los rectángulos de los grupos
-    grupoContainer: {
-      // backgroundColor: "#D09CFA", // Color morado claro
-      backgroundColor: "transparent",
-      borderRadius: 12,          // Bordes redondeados
-      padding: 12,               // Espaciado interno
-      marginBottom: 16,          // Espacio entre grupos
-      flexDirection: "row",      // Para alinear "Grupo" y el contenido en fila
-      alignItems: "center",      // Centrar verticalmente
-    },
-    grupoLabel: {
-      fontSize: 14,
-      color: "#FFFFFF",
-      marginRight: 8,            // Separación del texto "Grupo"
-    },
-    grupoContent: {
-      flex: 1,
-      flexDirection: "row",      // Contenedor en fila para nombre y botón
-      alignItems: "center",
-      backgroundColor: "#FFFFFF", // Fondo blanco
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: 8,           // Bordes redondeados para el contenido
-    },
-    grupoName: {
-      flex: 1,
-      fontSize: 16,
-      fontWeight: "bold",
-      color: "#000000",
-    }, 
+
     input: {
       height: 40,
       fontSize: 16,
@@ -160,13 +152,10 @@ const styles = StyleSheet.create({
       backgroundColor: "#4E3350", // Fondo violeta oscuro para toda el área
   },
 
-  extraccionesScreenContainer: {
-    flex: 1,
-    backgroundColor: "white",
-  },
+
 
 headerContainerE: {
-  backgroundColor: "#fff",
+ 
   paddingVertical: 16,
   alignItems: "center",
   borderBottomColor: "#EEE",
@@ -183,7 +172,7 @@ headerContainerEX: {
 headerText: {
   fontSize: 20,
   fontWeight: "bold",
-  color: "#333",
+  color: "#000",
 },
 
 extraccionContainer: {
@@ -316,73 +305,6 @@ timerBadge: {
   marginVertical: 8,      // espaciado arriba/abajo
 },
 
-
-modalOverlay: {
-  flex: 1,
-  backgroundColor: "rgba(0,0,0,0.5)",
-  justifyContent: "center",
-  alignItems: "center",
-},
-modalContainer: {
-  backgroundColor: "#F2D7FF",
-  borderRadius: 20,
-  padding: 20,
-  alignItems: "center",      // Alinea el contenido en el centro
-  justifyContent: "center",  // Opcional si quieres centrar verticalmente
-  width: "80%",              // O un ancho que desees
-},
-modalTitle: {
-  fontSize: 18,
-  fontWeight: "bold",
-  color: "#873B8C", //lo cambie
-  marginBottom: 20,
-},
-modalButton: {
-  backgroundColor: "#873B8C",
-  borderRadius: 10,
-  paddingVertical: 10,
-  paddingHorizontal: 20,
-  marginTop: 20,
-},
-modalButtonText: {
-  fontSize: 16,
-  color: "#fff",
-},
-  // Contenedor principal para el intervalo
-  intervalTimeContainer: {
-    backgroundColor: "#D09CFA", // Lila claro
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    
-    // Para alinear la etiqueta+hora a la izquierda y la X a la derecha
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  // Texto "intervalos de tiempo:"
-  intervalLabelE: {
-    color: "#fff",      // Texto en blanco
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  // Botón blanco donde se muestra la hora
-  intervalTimeButton: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 40,
-    marginLeft: 10,     // Espacio entre la etiqueta y el botón
-  },
-
-  // Texto morado que muestra la hora dentro del botón
-  intervalTimeText: {
-    color: "#873B8C",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
   // globalStyles.js (fragmento)
 confirmContainerExtracciones: {
   borderRadius: 12,
@@ -418,8 +340,179 @@ muestraText: {
   marginBottom: 8,
 },
 
-
+  
 }
 );
 
 export default styles;
+
+  // // --- Tarjeta superior ---
+  // topBarCard: {
+  //   backgroundColor: "rgb(57, 0, 118)",      // púrpura
+  //   borderBottomLeftRadius: 24,
+  //   borderBottomRightRadius: 24,
+  //   paddingVertical: 16,
+  //   paddingHorizontal: 20,
+  //   elevation: 4,
+  // },
+  // title: {
+  //   color: '#FFF',
+  //   fontSize: 20,
+  //   fontWeight: '700',
+  //   textAlign: 'center',
+  // },
+  // subtitle: {
+  //   color: '#FFF',
+  //   fontSize: 16,
+  //   textAlign: 'center',
+  //   marginTop: 4,
+  // },
+
+  // // --- Fila de filtros ---
+  // filterRow: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-around',
+ 
+  // },
+  // filterButton: {
+  //   flex: 1,  // 🔑 todos ocupan el mismo espacio
+  //   alignItems: 'center',
+  //   paddingVertical: rh(1.2),
+  //   paddingHorizontal: rw(2),
+  // },
+  // filterText: {
+  //   fontSize: rf(2),  // 2% del alto de pantalla
+  //   color: '#aaa',
+  //   fontWeight: '600',
+  // },
+  // filterTextActive: {
+  //   color: '#FFF',
+  //   fontWeight: '600',
+  // },
+  // filterUnderline: {
+  //   marginTop: rh(0.3),
+  //   height: rh(0.4),
+  //   width: '60%',                    // más proporcional al texto
+  //   backgroundColor: '#fff',
+  //   borderRadius: 999,
+  // },
+  // abortButton: {
+  //   position: 'absolute',
+  //   top: 16,                   // ajustá según tu safe area/status bar
+  //   right: 16,
+  //   width: 40,
+  //   height: 40,
+  //   borderRadius: 20,
+  //   backgroundColor: 'rgba(255, 255, 255, 0.96)',
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   zIndex: 100,
+  //   elevation: 10,             // Android
+  // },
+  // extraccionesScreenContainer: {
+  //   flex: 1,
+  //   backgroundColor: "white",
+  // },
+// botonesContainer: {
+//   flexDirection: 'row',
+//   justifyContent: 'space-between', // Alinea los botones a los extremos
+//   alignItems: 'center', // Asegura la alineación vertical
+//   position: 'absolute',
+//   bottom: 20, // Posición en la parte inferior
+//   left: 16,
+//   right: 16,
+// },
+// // Estilos para los rectángulos de los grupos
+// grupoContainer: {
+//   backgroundColor: "transparent",
+//   borderRadius: 12,          // Bordes redondeados
+//   padding: 12,               // Espaciado interno
+//   marginBottom: 16,          // Espacio entre grupos
+//   flexDirection: "row",      // Para alinear "Grupo" y el contenido en fila
+//   alignItems: "center",
+//   width: "100%",       // por ejemplo 90% del padre
+//   alignSelf: "center",      // Centrar verticalmente 
+//   elevation: 8,
+// },
+// grupoLabel: {
+//   fontSize: 14,
+//   color: "#FFFFFF",
+//   marginRight: 8,            // Separación del texto "Grupo"
+// },
+// grupoContent: {
+//   flex: 1,
+//   flexDirection: "row",      // Contenedor en fila para nombre y botón
+//   alignItems: "center",
+//   backgroundColor: "#FFFFFF", // Fondo blanco
+//   paddingVertical: 6,
+//   paddingHorizontal: 12,
+//   borderRadius: 8,           // Bordes redondeados para el contenido
+// },
+// grupoName: {
+//   flex: 1,
+//   fontSize: 16,
+//   fontWeight: "bold",
+//   color: "#000000",
+// }, 
+
+// modalOverlay: {
+//   flex: 1,
+//   backgroundColor: "rgba(0,0,0,0.5)",
+//   justifyContent: "center",
+//   alignItems: "center",
+// },
+// modalContainer: {
+//   backgroundColor: "#F2D7FF",
+//   borderRadius: 20,
+//   padding: 20,
+//   alignItems: "center",      // Alinea el contenido en el centro
+//   justifyContent: "center",  // Opcional si quieres centrar verticalmente
+//   width: "90%",              // O un ancho que desees
+// },
+// modalTitle: {
+//   fontSize: 18,
+//   fontWeight: "bold",
+//   color: "#873B8C", //lo cambie
+//   marginBottom: 20,
+// },
+// modalButton: {
+//   backgroundColor: "#873B8C",
+//   borderRadius: 10,
+//   paddingVertical: 10,
+//   paddingHorizontal: 20,
+//   marginTop: 20,
+// },
+// modalButtonText: {
+//   fontSize: 16,
+//   color: "#fff",
+// },
+//   // Contenedor principal para el intervalo
+//   intervalTimeContainer: {
+//     backgroundColor:  "rgba(89, 10, 131, 0.94)",
+//     borderRadius: 12,
+//     padding: 12,
+//     marginBottom: 16,
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//   },
+//     // Botón blanco donde se muestra la hora
+//   intervalTimeButton: {
+//     backgroundColor: "#fff",
+//     borderRadius: 8,
+//     paddingVertical: 6,
+//     paddingHorizontal: 55,
+//     marginLeft: 10,     // Espacio entre la etiqueta y el botón
+//   },
+//   // Texto morado que muestra la hora dentro del botón
+//   intervalTimeText: {
+//     color: "#873B8C",
+//     fontSize: 16,
+//     fontWeight: "bold",
+//   },
+//   // Texto "intervalos de tiempo:"
+//   intervalLabelE: {
+//     color: "#fff",      // Texto en blanco
+//     fontSize: 16,
+//     fontWeight: "bold",
+//   },

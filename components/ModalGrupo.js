@@ -9,12 +9,11 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
-  Dimensions,
+  Dimensions,   
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import modalStyles from "../styles/modalStyles";
-import CustomButton from "./ButtonAgregar";
-import { StatusBar } from "react-native";
+import buttonStyles from '../styles/buttonStyles';
 
 
 const { width, height } = Dimensions.get("window");
@@ -67,7 +66,6 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
           {/* Header */}
           <View style={modalStyles.modalHeader}>
             <Text style={modalStyles.modalTitle}>
-              {grupoEditando ? "EDITAR GRUPO" : "AGREGAR GRUPO"}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <MaterialIcons name="close" size={24} color="#fff" />
@@ -90,7 +88,7 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                 value={name}
                 onChangeText={setName}
               />
-              <MaterialIcons name="edit" size={20} color="#888" />
+             
             </View>
 
             <Text style={modalStyles.label}>Descripción:</Text>
@@ -102,7 +100,7 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                 value={description}
                 onChangeText={setDescription}
               />
-              <MaterialIcons name="edit" size={20} color="#888" />
+             
             </View>
 
             <Text style={modalStyles.label}>Cantidad de Individuos:</Text>
@@ -115,18 +113,26 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                 value={cantidadPacientes}
                 onChangeText={setCantidadPacientes}
               />
-              <MaterialIcons name="people" size={20} color="#888" />
+             
             </View>
           </ScrollView>
         </View>
 
 
         <View style={[modalStyles.modalFooter, styles.footer]}>
-          <CustomButton
-            title={grupoEditando ? "GUARDAR CAMBIOS" : "AGREGAR"}
-            onPress={handleAdd}
-          />
+              <TouchableOpacity
+                style={buttonStyles.button}
+                onPress={handleAdd}
+                activeOpacity={0.7}
+              >
+                <Text style={buttonStyles.text}>
+                  { grupoEditando ? "GUARDAR CAMBIOS" : "AGREGAR" }
+                </Text>
+              </TouchableOpacity>
+
         </View>
+
+
       </View>
     </TouchableWithoutFeedback>
   );
@@ -136,12 +142,13 @@ export default ModalGrupo;
 
 const styles = StyleSheet.create({
   overlay: {
+
     position: "absolute",
     top: 0,
     left: 0,
     width,
     height,
-    backgroundColor: "#fff",
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 999, // por encima de todo
