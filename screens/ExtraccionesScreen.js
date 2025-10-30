@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState, useReducer } from "react";
-import { View, Text, TouchableOpacity, FlatList, SafeAreaView, AppState,Platform,InteractionManager, Alert } from "react-native";
+import React, { useContext, useEffect,useState, useReducer } from "react";
+import { View, Text,  TouchableOpacity, FlatList, SafeAreaView, AppState,Platform,InteractionManager, Alert } from "react-native";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import styles from "../styles/globalStyles";
@@ -12,6 +12,8 @@ import * as Notifications from 'expo-notifications';
 import Paciente from "../components/Paciente";
 import { guardarCSVenDescargas } from '../services/fileUtils';
 import extraccionesStyles from "../styles/extraccionesStyles";
+import * as XLSX from 'xlsx';
+
 
 // Devuelve 'SIN_INICIAR' | 'CURSO' | 'FINALIZADO' según el estado de un paciente
 function getStatus(paciente, timer) {
@@ -45,7 +47,7 @@ const ExtraccionesScreen = () => {
   } = useContext(GlobalContext);
   const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
   const [filter, setFilter] = useState('NOT_STARTED');
-  
+  const [isExporting, setIsExporting] = useState(false);
 
   // Utilizamos useReducer para forzar un re-render cada segundo.
   // Cada vez que se llama a forceUpdate() se actualiza un estado interno que no usamos,
@@ -563,105 +565,109 @@ const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
 };
  
 
-
 const exportarMatrices = async () => {
-  // 1. Armar CSV datos
-  const cabeceraDatos = ["Nombre", "Edad", "Sexo", "Peso", "Descripción", "Grupo"];
-  const filasDatos = patientsWithIntervals.map(p => [
-    p.nombre, p.edad, p.sexo, p.peso, p.descripcion, p.grupoName
-  ]);
-  const csvDatos = [cabeceraDatos, ...filasDatos]
-    .map(f => f.join(","))
-    .join("\n");
+    // --- NUEVO: Evita doble clic ---
+    if (isExporting) return;
+    setIsExporting(true);
 
-  // 2. Armar CSV muestreo
-  const headerMuestreo = [
-    "identificador",
-    "inicio",
-    ...intervalos.map((i, idx) => {
-      if (i.tiempo.days > 0) return `t${idx + 1} ${i.tiempo.days}d`;
-      const hh = String(i.tiempo.hours).padStart(2, "0");
-      const mm = String(i.tiempo.minutes).padStart(2, "0");
-      return `t${idx + 1} ${hh}:${mm}`;
-    })
-  ];
+    try {
+      // 1. Armar CSV datos (Tu código original)
+      const cabeceraDatos = ["Nombre", "Edad", "Sexo", "Peso", "Descripción", "Grupo"];
+      const filasDatos = patientsWithIntervals.map(p => [
+        p.nombre, p.edad, p.sexo, p.peso, p.descripcion, p.grupoName
+      ]);
+      // --- CAMBIO AQUÍ ---
+      // Ya no lo convertimos a string, dejamos el array
+      const datosArray = [cabeceraDatos, ...filasDatos];
 
-  const filasMuestreo = patientsWithIntervals.map(p => {
-    const identificador = p.nombre;
-    const inicio = p.inicio ? new Date(p.inicio).toLocaleTimeString() : "";
+      // 2. Armar CSV muestreo (Tu código original)
+      const headerMuestreo = [
+        "identificador",
+        "inicio",
+        ...intervalos.map((i, idx) => {
+          if (i.tiempo.days > 0) return `t${idx + 1} ${i.tiempo.days}d`;
+          const hh = String(i.tiempo.hours).padStart(2, "0");
+          const mm = String(i.tiempo.minutes).padStart(2, "0");
+          return `t${idx + 1} ${hh}:${mm}`;
+        })
+      ];
+      const filasMuestreo = patientsWithIntervals.map(p => {
+        const identificador = p.nombre;
+        const inicio = p.inicio ? new Date(p.inicio).toLocaleTimeString() : "";
+    
+        const outcomes = p.intervalos.map(i => {
+          if (i.outcome == null) return "";
+          const symbol = i.outcome === "1" ? "si" : "no";
+          const suffix = i.tiempoRespuesta ? ` (${i.tiempoRespuesta})` : "";
+          return symbol + suffix;
+        });
+    
+        return [identificador, inicio, ...outcomes];
+      });
+      // --- CAMBIO AQUÍ ---
+      // Ya no lo convertimos a string, dejamos el array
+      const muestreoArray = [headerMuestreo, ...filasMuestreo];
+      
+      const baseName = sampleName.replace(/\s+/g, "");
 
-    const outcomes = p.intervalos.map(i => {
-      if (i.outcome == null) return "";
-      const symbol = i.outcome === "1" ? "si" : "no";
-      const suffix = i.tiempoRespuesta ? ` (${i.tiempoRespuesta})` : "";
-      return symbol + suffix;
-    });
+      // --- INICIO DE LA LÓGICA DE EXCEL (CORREGIDA) ---
 
-    return [identificador, inicio, ...outcomes];
-  });
+      // 3. Crear un "Libro" (Workbook) de Excel
+      const wb = XLSX.utils.book_new();
 
-  const csvMuestreo = [headerMuestreo, ...filasMuestreo]
-    .map(fila => fila.join(","))
-    .join("\n");
+      // 4. Convertir tus Arrays en "Hojas" (Sheets)
+      // --- CAMBIO AQUÍ ---
+      const ws_datos = XLSX.utils.aoa_to_sheet(datosArray);
+      // --- CAMBIO AQUÍ ---
+      const ws_muestreo = XLSX.utils.aoa_to_sheet(muestreoArray);
 
-  const baseName = sampleName.replace(/\s+/g, "");
+      // 5. Añadir las hojas al libro con los nombres que quieras
+      XLSX.utils.book_append_sheet(wb, ws_datos, "Datos");
+      XLSX.utils.book_append_sheet(wb, ws_muestreo, "Muestreo");
 
-  // 3. Guardar copias permanentes en Descargas
-  const backupOk1 = await guardarCSVenDescargas(`${baseName}_datos.csv`, csvDatos);
-  const backupOk2 = await guardarCSVenDescargas(`${baseName}_muestreo.csv`, csvMuestreo);
+      // 6. Generar el archivo Excel en formato Base64 (Sin cambios)
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
 
-  if (!backupOk1 || !backupOk2) {
-    Alert.alert("Error", "❌ No se pudieron guardar las matrices en Descargas.");
-    return;
-  }
+      // 7. Definir la ruta del archivo (Sin cambios)
+      const nombreArchivo = `${baseName}_Resultados.xlsx`;
+      const uri = FileSystem.cacheDirectory + nombreArchivo;
 
-  console.log("✅ CSV guardados en Descargas. Compartiendo...");
+      // 8. Escribir el archivo Excel en el caché (Sin cambios)
+      await FileSystem.writeAsStringAsync(uri, wbout, {
+        encoding: FileSystem.EncodingType.Base64
+      });
 
-  // 4. Guardar copias temporales para compartir (en documentDirectory)
-  const tempDatosPath = FileSystem.documentDirectory + `${baseName}_datos.csv`;
-  const tempMuestreoPath = FileSystem.documentDirectory + `${baseName}_muestreo.csv`;
+      // 9. Compartir el archivo (SOLO SE LLAMA UNA VEZ) (Sin cambios)
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: 'Compartir Resultados (.xlsx)'
+      });
+      
+      // 10. Limpiar y volver al Home (Tu código original - sin cambios)
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await AsyncStorage.multiRemove([
+        "gruposData",
+        "pacientesData",
+        "intervalosData",
+        ...patientsWithIntervals.map(p => `intervalosTomados-${p.id}`),
+        ...patientsWithIntervals.map(p => `inicio-${p.id}`),
+      ]);
 
-  await FileSystem.writeAsStringAsync(tempDatosPath, csvDatos, { encoding: FileSystem.EncodingType.UTF8 });
-  await FileSystem.writeAsStringAsync(tempMuestreoPath, csvMuestreo, { encoding: FileSystem.EncodingType.UTF8 });
-
-  // 5. Compartir archivos (uno por uno)
-  try {
-    await Sharing.shareAsync(tempDatosPath, {
-      mimeType: "text/csv",
-      dialogTitle: "Compartir datos CSV"
-    });
-    console.log("✅ Datos compartidos");
-  } catch (e) {
-    console.log("❌ Error al compartir datos:", e);
-  }
-
-  try {
-    await Sharing.shareAsync(tempMuestreoPath, {
-      mimeType: "text/csv",
-      dialogTitle: "Compartir muestreo CSV"
-    });
-    console.log("✅ Muestreo compartido");
-  } catch (e) {
-    console.log("❌ Error al compartir muestreo:", e);
-  }
-
-  // 6. Limpiar y volver al Home
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  await AsyncStorage.multiRemove([
-    "gruposData",
-    "pacientesData",
-    "intervalosData",
-    ...patientsWithIntervals.map(p => `intervalosTomados-${p.id}`),
-    ...patientsWithIntervals.map(p => `inicio-${p.id}`),
-  ]);
-
-  setGrupos([]);
-  setPacientes([]);
-  setIntervalos([]);
-  setSampleName("");
-  setHideAddButtons(false);
-  router.replace("/");
-};
+      setGrupos([]);
+      setPacientes([]);
+      setIntervalos([]);
+      setSampleName("");
+      setHideAddButtons(false);
+      router.replace("/");
+      
+    } catch (e) {
+      console.error("Error al exportar:", e);
+      Alert.alert("Error", "No se pudo generar o compartir el archivo Excel.");
+    } finally {
+      // 11. Pase lo que pase, re-habilita el botón (Sin cambios)
+      setIsExporting(false);
+    }
+  };
 
 const sinIniciar   = [];
 const enCurso      = [];
