@@ -1,6 +1,6 @@
 // EsquemaScreen.js
 import React, { useContext, useState } from "react";
-import { View, Text, TouchableOpacity, Modal, FlatList, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Modal, FlatList, Alert, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import styles from "../styles/globalStyles";
 import TimePicker from "../components/TimePicker";
@@ -10,7 +10,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import buttonStyles from '../styles/buttonStyles';
 import { RFPercentage, RFValue } from "react-native-responsive-fontsize";
 import esquemaStyles from "../styles/esquemaStyles";
-
+import grupoStyles from "../styles/grupoStyles";
 
 async function crearEventoLocalEnDias(dias, summary) {
   const { status } = await Calendar.requestCalendarPermissionsAsync();
@@ -72,37 +72,48 @@ const EsquemaScreen = () => {
   };
 
 const renderItem = ({ item }) => {
-  return (
-      <TouchableOpacity
-        style={[
-          esquemaStyles.intervalTimeContainer,
-          hideAddButtons && { opacity: 0.5 }   
-        ]}
-        activeOpacity={0.7}
-        onPress={() => {
-          if (!hideAddButtons) {
-            abrirModal(item.id);
-          }
-        }}
-        disabled={hideAddButtons}              
-      >
-      <View style={esquemaStyles.intervalRow}>
-        <Text style={esquemaStyles.intervalLabel}>Intervalos de tiempo:</Text>
-        <View style={esquemaStyles.intervalTimeButton}>
-          <Text style={esquemaStyles.intervalTimeText}>
-            {item.tiempo.days > 0
-              ? `${item.tiempo.days} día${item.tiempo.days > 1 ? 's' : ''}`
-              : `${String(item.tiempo.hours).padStart(2,'0')}:${String(item.tiempo.minutes).padStart(2,'0')}`}
-          </Text>
-        </View>
-      </View>
+  const timeString =
+    item.tiempo.days > 0
+      ? `${item.tiempo.days} día${item.tiempo.days > 1 ? 's' : ''}`
+      : `${String(item.tiempo.hours).padStart(2, '0')}:${String(
+          item.tiempo.minutes
+        ).padStart(2, '0')}`;
 
-      <TouchableOpacity
-        onPress={() => eliminarIntervalo(item.id)}
-        style={esquemaStyles.closeButton} // para ampliar la zona táctil de la X
-      >
-        <MaterialIcons name="close" size={20} color="#fff" />
-      </TouchableOpacity>
+  const isDisabled = hideAddButtons;
+
+  return (
+    <TouchableOpacity
+      style={[
+        esquemaStyles.cardContainer,
+        isDisabled && esquemaStyles.cardDisabled,
+      ]}
+      activeOpacity={0.8}
+      onPress={() => !isDisabled && abrirModal(item.id)}
+      disabled={isDisabled}
+    >
+      {/* 1. Barra lateral roja, directamente */}
+      <View style={[esquemaStyles.sideBar, { backgroundColor: '#663399' }]} />
+
+      {/* 2. Contenedor principal (que tiene flexDirection: 'row' en los estilos) */}
+      <View style={esquemaStyles.contentContainer}>
+        
+        {/* Contenedor del Texto */}
+        <View style={esquemaStyles.textContainer}>
+          <Text style={esquemaStyles.cardTitle}>{timeString}</Text>
+          <Text style={esquemaStyles.cardSubtitle}>Intervalo de tiempo</Text>
+        </View>
+
+        {/* Botón de Borrar */}
+        <TouchableOpacity
+          onPress={() => eliminarIntervalo(item.id)}
+          style={esquemaStyles.deleteButton}
+          disabled={isDisabled}
+        >
+          {/* 3. Ícono rojo, directamente */}
+          <MaterialIcons name="delete-outline" size={24} color="#C83C3C" />
+        </TouchableOpacity>
+        
+      </View>
     </TouchableOpacity>
   );
 };
@@ -170,107 +181,112 @@ const onConfirmarFecha = async () => {
 };
 
 
-  return (
-<View style={styles.container}>
-<View
-  style={[
-    styles.header,
-    {
-      flexDirection: 'row',        // eje principal horizontal
-      justifyContent: 'flex-start',// pega todo al inicio
-      alignItems: 'center',        // centra verticalmente
-      paddingHorizontal: 16        // opcional, margen lateral
-    }
-  ]}
->
-  <TouchableOpacity
-    style={{ flexDirection: 'row', alignItems: 'center' }}
-    onPress={() => router.push("paciente")}
-  >
-    <MaterialIcons name="arrow-back" size={24} color="#000" />
-    <Text style={[styles.headerText, { marginLeft: 8 }]}>
-      {sampleName}
-    </Text>
-  </TouchableOpacity>
-</View>
-      <View style={styles.fondoApp}>
-        <Text style={styles.main}>ESQUEMA DE MUESTREO </Text>
+return (
+    // 2. Usamos SafeAreaView (de globalStyles)
+    <SafeAreaView style={styles.safeArea}>
+      
+      {/* 3. Header blanco (de globalStyles) */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity 
+          onPress={() => router.push("paciente")} // Mantenemos tu navegación
+          style={styles.backButton}
+        >
+          <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{sampleName || "Esquema"}</Text>
+      </View>
+
+      {/* 4. Contenedor principal (fondo gris, de globalStyles) */}
+      <View style={styles.container}>
+
+        {/* 5. Título de sección (de globalStyles) */}
+        <Text style={styles.sectionTitle}>ESQUEMA DE MUESTREO</Text>
+
         <FlatList
           data={intervalos}
           keyExtractor={item => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 80, paddingTop: 20,paddingHorizontal: 16 }}
+          style={{ width: "100%", flex: 1 }}
+          // 6. Padding para los botones y estado vacío
+          contentContainerStyle={{ paddingBottom: RFValue(150) }} 
+          ListEmptyComponent={(
+            // 7. Estado vacío (de globalStyles)
+            <View style={styles.emptyStateContainer}>
+              <Text style={styles.emptyStateText}>No hay intervalos creados</Text>
+              <Text style={styles.emptyStateText}>Presiona "AGREGAR" para comenzar</Text>
+            </View>
+          )}
         />
-        {/* Modal primer flujo */}
-        <Modal visible={modalVisible} transparent animationType="fade">
-          <View style={esquemaStyles.modalOverlay}>
-            <View style={esquemaStyles.modalContainer}>
-              <Text style={esquemaStyles.modalTitle}>SELECCIONAR TIEMPO</Text>
-              <TimePicker onTimeChange={handleTimeChange} />
-              <TouchableOpacity style={esquemaStyles.modalButton} onPress={onPressConfirmar}>
-                <Text style={esquemaStyles.modalButtonText}>CONFIRMAR</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal creación evento */}
-        <Modal visible={eventModalVisible} transparent animationType="fade">
-          <View style={esquemaStyles.modalOverlay}>
-            <View style={esquemaStyles.modalContainer}>
-              <Text style={esquemaStyles.modalTitle}>Se agregará un evento en Calendar el día:</Text>
-              <Text style={[esquemaStyles.modalSubtitle, { marginVertical: 16 }]}>{eventDate}</Text>
-              <TouchableOpacity style={esquemaStyles.modalButton} onPress={onConfirmarFecha}>
-                <Text style={styles.esquemaStyles}>CONFIRMAR</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        <TouchableOpacity
-          style={[
-            buttonStyles.buttonAgregar,
-            hideAddButtons && { backgroundColor: '#A9A9A9' }, // gris si está deshabilitado
-            hideAddButtons && { opacity: 0.6 }                // opcional: se ve “apagado”
-          ]}
-          onPress={() => {
-            if (!hideAddButtons) {
-              abrirModal(null);
-            }
-          }}
-          disabled={hideAddButtons}
-          activeOpacity={0.7}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      </View>
+         
+      {/* 8. Contenedor de botones (de globalStyles) */}
+       <View style={grupoStyles.bottomButtonContainer}>
+          {/* Botón AGREGAR (con estilo flex: 1) */}
+          <TouchableOpacity
+            style={[
+              grupoStyles.primaryButton,
+              { flex: 1, marginRight: RFValue(5) }, // <-- Estilo de layout
+              hideAddButtons && { backgroundColor: '#A9A9A9' }, 
+              hideAddButtons && { opacity: 0.6 }                
+            ]}
+            onPress={() => {
+              if (!hideAddButtons) {
+                abrirModal(null);
+              }
+            }}
+            disabled={hideAddButtons}
+            activeOpacity={0.7}
+          >
             <MaterialIcons
               name="add"
               size={RFValue(20)}
               color="#FFFFFF"
               style={{ marginRight: RFValue(8) }}
             />
-            <Text style={buttonStyles.text}>AGREGAR</Text>
-          </View>
-        </TouchableOpacity>
-
-            <TouchableOpacity
-              style={buttonStyles.buttonContinuar}
-              onPress={() => router.push({ pathname: "extracciones" })}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                
-                <Text style={buttonStyles.text}>CONTINUAR</Text>
-              
-                <MaterialIcons
-                  name="arrow-forward-ios"
-                  size={RFValue(20)}
-                  color="#FFFFFF"                
-                  style={{ marginLeft: RFValue(8) }}
-                />
-              </View>
-            </TouchableOpacity>
+            <Text style={grupoStyles.primaryButtonText}>AGREGAR</Text>
+          </TouchableOpacity>
+          {/* Botón CONTINUAR (con estilo flex: 1) */}
+          <TouchableOpacity
+            style={grupoStyles.secondaryButton}
+            onPress={() => router.push({ pathname: "extracciones" })}
+            activeOpacity={0.7}
+          >
+            <Text style={grupoStyles.secondaryButtonText}>CONTINUAR</Text>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={RFValue(18)} // Ligeramente más pequeño
+              color="#FFFFFF"
+              style={{ marginLeft: RFValue(8) }}
+            />
+          </TouchableOpacity>
       </View>
-    </View>
+
+      {/* 9. Modales (movidos fuera del 'container' principal) */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={esquemaStyles.modalOverlay}>
+          <View style={esquemaStyles.modalContainer}>
+            <Text style={esquemaStyles.modalTitle}>SELECCIONAR TIEMPO</Text>
+            <TimePicker onTimeChange={handleTimeChange} />
+            <TouchableOpacity style={esquemaStyles.modalButton} onPress={onPressConfirmar}>
+              <Text style={esquemaStyles.modalButtonText}>CONFIRMAR</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={eventModalVisible} transparent animationType="fade">
+        <View style={esquemaStyles.modalOverlay}>
+          <View style={esquemaStyles.modalContainer}>
+            <Text style={esquemaStyles.modalTitle}>Se agregará un evento en Calendar el día:</Text>
+            <Text style={[esquemaStyles.modalSubtitle, { marginVertical: 16 }]}>{eventDate}</Text>
+            <TouchableOpacity style={esquemaStyles.modalButton} onPress={onConfirmarFecha}>
+              <Text style={styles.esquemaStyles}>CONFIRMAR</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+    </SafeAreaView>
   );
 };
 

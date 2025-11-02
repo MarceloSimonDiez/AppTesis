@@ -1,13 +1,16 @@
 import React, { useContext, useState, useEffect} from "react";
-import { View, Text, TouchableOpacity, FlatList , } from "react-native";
+// Importamos SafeAreaView para manejar los 'notches' del teléfono
+import { View, Text, TouchableOpacity, FlatList, SafeAreaView, Alert } from "react-native"; 
 import { GlobalContext } from "../GlobalProvider"; // Importamos el contexto
 import { useRouter } from "expo-router";
-import styles from "../styles/globalStyles";
+// 'styles' ahora lo usaremos para el layout general, no 'globalStyles'
+import styles from "../styles/globalStyles"; 
 import ModalForm from "../components/ModalGrupo";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
-import buttonStyles from '../styles/buttonStyles';
+// 'buttonStyles' ya no es necesario, usaremos 'grupoStyles'
+// import buttonStyles from '../styles/buttonStyles'; 
 import { RFPercentage, RFValue } from "react-native-responsive-fontsize";
-import grupoStyles from "../styles/grupoStyles";
+import grupoStyles from "../styles/grupoStyles"; // Aquí estarán todos nuestros nuevos estilos
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
@@ -25,192 +28,175 @@ const GROUP_COLORS = [
 ];
 
 const GrupoScreen = () => {
+  const { grupos, setGrupos, hideAddButtons, sampleName } = useContext(GlobalContext); // Traemos sampleName
   const router = useRouter();
-  const {
-    sampleName,
-    grupos,
-    addGroup,
-    updateGroup,
-    deleteGroup,
-    colorIndex,
-    setColorIndex,
-  } = useContext(GlobalContext);
-
   const [modalVisible, setModalVisible] = useState(false);
   const [grupoEditando, setGrupoEditando] = useState(null);
-  const { hideAddButtons } = useContext(GlobalContext);
-  
-    useEffect(() => {
-    const cargarColorIndex = async () => {
-      try {
-        const savedColorIndex = await AsyncStorage.getItem("colorIndex");
-        if (savedColorIndex !== null) {
-          setColorIndex(parseInt(savedColorIndex));
-        }
-      } catch (error) {
-        console.log("❌ Error al leer colorIndex:", error);
-      }
-    };
 
-    cargarColorIndex();
-  }, []);
-
-  const handleAddGroup = (name, description, cantidadPacientes) => {
-    if (name.trim() === "" || isNaN(cantidadPacientes)) {
-      console.error("La cantidad de pacientes debe ser un número válido");
-      return;
+// --- FUNCIÓN handleAddGroup (CORREGIDA) ---
+//    (Para guardar el color en el objeto)
+  const handleAddGroup = (grupoData) => {
+    if (grupoEditando) {
+      // Lógica de Edición:
+      // Combina los datos del modal (nombre, etc.) con el grupo existente (que ya tiene ID y color)
+      setGrupos(grupos.map((g) => (g.id === grupoData.id ? { ...g, ...grupoData } : g)));
+    } else {
+      // Lógica de Agregar:
+      // Asigna un color de la lista basado en la cantidad de grupos
+      const newColor = GROUP_COLORS[grupos.length % GROUP_COLORS.length];
+      
+      const newGroup = {
+          ...grupoData, // Los datos del modal
+          id: Date.now().toString() + '-' + Math.floor(Math.random() * 1000), // ID único
+          color: newColor, // <-- ¡AQUÍ GUARDAMOS EL COLOR!
+      };
+      setGrupos([...grupos, newGroup]);
     }
-
-if (grupoEditando) {
-  // Edición: mantiene color original
-  updateGroup(grupoEditando.id, name, description, cantidadPacientes);
-  setGrupoEditando(null);
-} else {
-  const color = GROUP_COLORS[(colorIndex ?? 0) % GROUP_COLORS.length];
-  addGroup(name, description, cantidadPacientes, color);
-
-  // Guardar y actualizar el colorIndex
-  setColorIndex((prev) => {
-    const nuevo = prev + 1;
-    AsyncStorage.setItem("colorIndex", nuevo.toString());
-    return nuevo;
-  });
-}
-
-
-    setModalVisible(false);
+    setGrupoEditando(null);
   };
 
-  const handleEditGroup = (grupo) => {
+  const handleEdit = (grupo) => {
     setGrupoEditando(grupo);
     setModalVisible(true);
   };
 
-  const handleDeleteGroup = (id) => {
-    deleteGroup(id);
+  const handleRemove = (id) => {
+    Alert.alert(
+      "Eliminar Grupo",
+      "¿Está seguro que desea eliminar este grupo?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          onPress: () => setGrupos(grupos.filter((g) => g.id !== id)),
+          style: "destructive",
+        },
+      ]
+    );
   };
+  // --- FIN DE LÓGICA FUNCIONAL ---
 
-  const renderGrupo = ({ item, index }) => {
-    // usa el color guardado en el grupo (item.color)
-    const color = item.color ?? GROUP_COLORS[index % GROUP_COLORS.length];
+  // --- RENDER ITEM (Modificado estéticamente) ---
+//    (Para mostrar la barra de color)
+  const renderItem = ({ item }) => {
+    // El color ahora viene de 'item.color'
+    // Añadimos un color de "fallback" por si un grupo viejo no lo tiene
+    const grupoColor = item.color || GROUP_COLORS[0]; 
+
     return (
-      <View style={[grupoStyles.grupoContainer, { backgroundColor: color }]}>
-        <Text style={[grupoStyles.grupoLabel, { color: "#FFF" }]}>Grupos</Text>
-        <View style={grupoStyles.grupoContent}>
-          <Text style={[grupoStyles.grupoName, { color: "#000" }]}>{item.name}</Text>
-         <View style={{ flexDirection: "row", alignItems: "center" }}>
-           {!hideAddButtons && 
-            <TouchableOpacity
-              onPress={() => handleEditGroup(item)}
-            >
-              <MaterialIcons name="mode-edit-outline" size={24} color={'#000'} />
-            </TouchableOpacity>
-          }
-            {!hideAddButtons && 
-            <TouchableOpacity
-              style={{
-                marginLeft: 8,
-                padding: 4,
-                borderRadius: 4,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-              onPress={() => handleDeleteGroup(item.id)}
-            >  
-              <MaterialCommunityIcons name="trash-can" size={24} color="#000" />
-            </TouchableOpacity>
-             }
-          </View>
+      // Aplicamos el estilo de tarjeta blanca (sin cambios)
+      <View style={grupoStyles.grupoContainer}> 
+        
+        {/* --- AÑADIDO: La barra de color --- */}
+        <View style={[grupoStyles.colorBar, { backgroundColor: grupoColor }]} />
+
+        {/* --- AÑADIDO: Un 'wrapper' para el contenido --- */}
+        <View style={grupoStyles.grupoContentWrapper}>
+          <Text style={grupoStyles.grupoName}>{item.name}</Text>
+          
+          {/* Iconos (sin cambios) */}
+          <TouchableOpacity onPress={() => handleEdit(item)}>
+            <MaterialIcons
+              name="edit"
+              size={RFValue(24)}
+              color="#663399"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleRemove(item.id)} style={{ marginLeft: 15 }}>
+              <MaterialIcons name="delete-outline" size={30} color="#C83C3C" />
+          </TouchableOpacity>
         </View>
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
-    <View
-      style={[
-        styles.header,
-        {
-          flexDirection: 'row',        // eje principal horizontal
-          justifyContent: 'flex-start',// pega todo al inicio
-          alignItems: 'center',        // centra verticalmente
-          paddingHorizontal: 16        // opcional, margen lateral
-        }
-      ]}
-    >
-      <TouchableOpacity
-        style={{ flexDirection: 'row', alignItems: 'center' }}
-        onPress={() => router.push("/")}
-      >
-        <MaterialIcons name="arrow-back" size={24} color="#000" />
-        <Text style={[styles.headerText, { marginLeft: 8 }]}>
-          {sampleName}
-        </Text>
-      </TouchableOpacity>
-    </View>
+    // Usamos SafeAreaView para el header
+    <SafeAreaView style={grupoStyles.safeArea}>
+      
+      {/* --- NUEVO: Encabezado como en la imagen --- */}
+      <View style={grupoStyles.headerContainer}>
+        <TouchableOpacity onPress={() => router.back()} style={grupoStyles.backButton}>
+          <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
+        </TouchableOpacity>
+        <Text style={grupoStyles.headerTitle}>{sampleName || "Muestra Farmacológica"}</Text>
+      </View>
 
+      {/* Usamos 'fondoApp' de globalStyles si existe, o el fondo de safeArea */}
+      <View style={[styles.fondoApp, { flex: 1, alignItems: 'center', paddingHorizontal: RFValue(15) }]}>
 
-      <View style={styles.fondoApp}>
-         <Text style={styles.main}>GRUPO EXPERIMENTAL </Text>
-        <FlatList
-          data={grupos}
-          keyExtractor={(item) => item.id}
-          renderItem={renderGrupo}
-          contentContainerStyle={{ padding: 16,paddingHorizontal: 16 }}
-        />
-        <TouchableOpacity
-          style={[
-            buttonStyles.buttonAgregar,
-            hideAddButtons && { backgroundColor: '#A9A9A9' }, // gris cuando esté deshabilitado
-            hideAddButtons && { opacity: 0.6 }                 // opcional: bajamos opacidad
-          ]}
-          onPress={() => {
-            if (!hideAddButtons) {
+        {/* --- NUEVO: Título "GRUPO EXPERIMENTAL" --- */}
+        <Text style={grupoStyles.sectionTitle}>GRUPO EXPERIMENTAL</Text>
+
+        {/* --- Lógica de renderizado condicional --- */}
+        {grupos.length === 0 ? (
+          // --- NUEVO: Estado vacío ---
+          <View style={grupoStyles.emptyStateContainer}>
+            <Text style={grupoStyles.emptyStateText}>No hay grupos creados</Text>
+            <Text style={grupoStyles.emptyStateText}>Presiona "Agregar" para comenzar</Text>
+          </View>
+        ) : (
+          // --- Tu FlatList (sin cambios funcionales) ---
+          <FlatList
+            data={grupos}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            style={{ width: "100%", flex: 1 }}
+            contentContainerStyle={{ paddingBottom: RFValue(150) }} // Espacio para los botones
+          />
+        )}
+
+        {/* --- NUEVO: Contenedor de botones fijos abajo --- */}
+        <View style={grupoStyles.bottomButtonContainer}>
+          {/* Botón AGREGAR (Estilo modificado) */}
+          <TouchableOpacity
+            style={[
+              grupoStyles.primaryButton,
+              { flex: 1, marginRight: RFValue(5) }, // <-- Estilo de layout
+              hideAddButtons && { backgroundColor: '#A9A9A9' }, 
+              hideAddButtons && { opacity: 0.6 }                
+            ]}
+            onPress={() => {
               setGrupoEditando(null);
               setModalVisible(true);
-            }
-          }}
-          disabled={hideAddButtons}
-          activeOpacity={0.7}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            }}
+            disabled={hideAddButtons}
+            activeOpacity={0.7}
+          >
             <MaterialIcons
               name="add"
               size={RFValue(20)}
               color="#FFFFFF"
               style={{ marginRight: RFValue(8) }}
             />
-            <Text style={buttonStyles.text}>AGREGAR</Text>
-          </View>
-        </TouchableOpacity>
+            <Text style={grupoStyles.primaryButtonText}>AGREGAR</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={buttonStyles.buttonContinuar}
-              onPress={() => router.push({ pathname: "paciente" })}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>      
-                <Text style={buttonStyles.text}>CONTINUAR</Text>
-              
-                <MaterialIcons
-                  name="arrow-forward-ios"
-                  size={RFValue(20)}
-                  color="#FFFFFF"                    // normalmente el texto es blanco, ajustá si querés otro color
-                  style={{ marginLeft: RFValue(8) }}
-                />
-              </View>
-            </TouchableOpacity>
+          {/* Botón CONTINUAR (Estilo modificado) */}
+          <TouchableOpacity
+            style={grupoStyles.secondaryButton} // <-- Nuevo estilo
+            onPress={() => router.push({ pathname: "paciente" })}
+            activeOpacity={0.7}
+          >
+            <Text style={grupoStyles.secondaryButtonText}>CONTINUAR</Text>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={RFValue(18)} // Ligeramente más pequeño
+              color="#FFFFFF"
+              style={{ marginLeft: RFValue(8) }}
+            />
+          </TouchableOpacity>
+        </View>
 
+        {/* --- Modal (Sin cambios) --- */}
         <ModalForm
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           onAdd={handleAddGroup}
           grupoEditando={grupoEditando}
-          
         />
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

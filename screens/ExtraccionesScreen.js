@@ -1,7 +1,8 @@
 import React, { useContext, useEffect,useState, useReducer } from "react";
+import * as MediaLibrary from 'expo-media-library';
 import { View, Text,  TouchableOpacity, FlatList, SafeAreaView, AppState,Platform,InteractionManager, Alert } from "react-native";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import styles from "../styles/globalStyles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GlobalContext } from "../GlobalProvider";
@@ -13,7 +14,8 @@ import Paciente from "../components/Paciente";
 import { guardarCSVenDescargas } from '../services/fileUtils';
 import extraccionesStyles from "../styles/extraccionesStyles";
 import * as XLSX from 'xlsx';
-
+import { RFValue } from "react-native-responsive-fontsize";
+import grupoStyles from "../styles/grupoStyles";
 
 // Devuelve 'SIN_INICIAR' | 'CURSO' | 'FINALIZADO' según el estado de un paciente
 function getStatus(paciente, timer) {
@@ -27,7 +29,6 @@ function getStatus(paciente, timer) {
   if (done) return 'FINALIZADO';
   if (active || (fin && !done)) return 'CURSO';
   if (!active && !fin && idx === 0) return 'SIN_INICIAR';
-  // Si es all-day y venció, también lo tratamos como finalizado:
   if (isDay && fin) return 'FINALIZADO';
   return 'SIN_INICIAR';
 }
@@ -46,7 +47,7 @@ const ExtraccionesScreen = () => {
     setTemporizadores  
   } = useContext(GlobalContext);
   const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
-  const [filter, setFilter] = useState('NOT_STARTED');
+  const [filter, setFilter] = useState('SIN_INICIAR');
   const [isExporting, setIsExporting] = useState(false);
 
   // Utilizamos useReducer para forzar un re-render cada segundo.
@@ -78,7 +79,7 @@ const ExtraccionesScreen = () => {
     iniciarIntervalo(pacienteId, accion);  // tu lógica original
   };
 
-    const confirmarFin = () => {
+  const confirmarFin = () => {
     Alert.alert(
       'Confirmar',
       '¿Estás seguro de que querés finalizar y exportar los datos recopilados hasta este momento?',
@@ -566,84 +567,64 @@ const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
  
 
 const exportarMatrices = async () => {
-    // --- NUEVO: Evita doble clic ---
-    if (isExporting) return;
-    setIsExporting(true);
+  // --- Evita doble clic ---
+  if (isExporting) return;
+  setIsExporting(true); // (1) Se pone en true
 
-    try {
-      // 1. Armar CSV datos (Tu código original)
-      const cabeceraDatos = ["Nombre", "Edad", "Sexo", "Peso", "Descripción", "Grupo"];
-      const filasDatos = patientsWithIntervals.map(p => [
-        p.nombre, p.edad, p.sexo, p.peso, p.descripcion, p.grupoName
-      ]);
-      // --- CAMBIO AQUÍ ---
-      // Ya no lo convertimos a string, dejamos el array
-      const datosArray = [cabeceraDatos, ...filasDatos];
+  try {
+    // 1. Armar CSV datos (Tu código original - Sin cambios)
+    const cabeceraDatos = ["Nombre", "Edad", "Sexo", "Peso", "Descripción", "Grupo"];
+    const filasDatos = patientsWithIntervals.map(p => [
+      p.nombre, p.edad, p.sexo, p.peso, p.descripcion, p.grupoName
+    ]);
+    const datosArray = [cabeceraDatos, ...filasDatos];
 
-      // 2. Armar CSV muestreo (Tu código original)
-      const headerMuestreo = [
-        "identificador",
-        "inicio",
-        ...intervalos.map((i, idx) => {
-          if (i.tiempo.days > 0) return `t${idx + 1} ${i.tiempo.days}d`;
-          const hh = String(i.tiempo.hours).padStart(2, "0");
-          const mm = String(i.tiempo.minutes).padStart(2, "0");
-          return `t${idx + 1} ${hh}:${mm}`;
-        })
-      ];
-      const filasMuestreo = patientsWithIntervals.map(p => {
-        const identificador = p.nombre;
-        const inicio = p.inicio ? new Date(p.inicio).toLocaleTimeString() : "";
+    // 2. Armar CSV muestreo (Tu código original - Sin cambios)
+    const headerMuestreo = [
+      "identificador",
+      "inicio",
+      ...intervalos.map((i, idx) => {
+        if (i.tiempo.days > 0) return `t${idx + 1} ${i.tiempo.days}d`;
+        const hh = String(i.tiempo.hours).padStart(2, "0");
+        const mm = String(i.tiempo.minutes).padStart(2, "0");
+        return `t${idx + 1} ${hh}:${mm}`;
+      })
+    ];
+    const filasMuestreo = patientsWithIntervals.map(p => {
+      const identificador = p.nombre;
+      const inicio = p.inicio ? new Date(p.inicio).toLocaleTimeString() : "";
     
-        const outcomes = p.intervalos.map(i => {
-          if (i.outcome == null) return "";
-          const symbol = i.outcome === "1" ? "si" : "no";
-          const suffix = i.tiempoRespuesta ? ` (${i.tiempoRespuesta})` : "";
-          return symbol + suffix;
-        });
+      const outcomes = p.intervalos.map(i => {
+        if (i.outcome == null) return "";
+        const symbol = i.outcome === "1" ? "si" : "no";
+        const suffix = i.tiempoRespuesta ? ` (${i.tiempoRespuesta})` : "";
+        return symbol + suffix;
+      });
     
-        return [identificador, inicio, ...outcomes];
-      });
-      // --- CAMBIO AQUÍ ---
-      // Ya no lo convertimos a string, dejamos el array
-      const muestreoArray = [headerMuestreo, ...filasMuestreo];
-      
-      const baseName = sampleName.replace(/\s+/g, "");
+      return [identificador, inicio, ...outcomes];
+    });
+    const muestreoArray = [headerMuestreo, ...filasMuestreo];
+    
+    // 3, 4 y 5. Crear el libro de Excel (Tu código original - Sin cambios)
+    const wb = XLSX.utils.book_new();
+    const ws_datos = XLSX.utils.aoa_to_sheet(datosArray);
+    const ws_muestreo = XLSX.utils.aoa_to_sheet(muestreoArray);
+    XLSX.utils.book_append_sheet(wb, ws_datos, "Datos");
+    XLSX.utils.book_append_sheet(wb, ws_muestreo, "Muestreo");
 
-      // --- INICIO DE LA LÓGICA DE EXCEL (CORREGIDA) ---
+    // 6. Generar el archivo Excel en formato Base64 (Sin cambios)
+    const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
 
-      // 3. Crear un "Libro" (Workbook) de Excel
-      const wb = XLSX.utils.book_new();
+    // 7. Definir nombre y tipo (Sin cambios)
+    const baseName = sampleName.replace(/\s+/g, "");
+    const nombreArchivo = `${baseName}_Resultados.xlsx`;
+    const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-      // 4. Convertir tus Arrays en "Hojas" (Sheets)
-      // --- CAMBIO AQUÍ ---
-      const ws_datos = XLSX.utils.aoa_to_sheet(datosArray);
-      // --- CAMBIO AQUÍ ---
-      const ws_muestreo = XLSX.utils.aoa_to_sheet(muestreoArray);
+    // --- INICIO DE LA LÓGICA DE PREGUNTAR (NUEVO) ---
 
-      // 5. Añadir las hojas al libro con los nombres que quieras
-      XLSX.utils.book_append_sheet(wb, ws_datos, "Datos");
-      XLSX.utils.book_append_sheet(wb, ws_muestreo, "Muestreo");
-
-      // 6. Generar el archivo Excel en formato Base64 (Sin cambios)
-      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-
-      // 7. Definir la ruta del archivo (Sin cambios)
-      const nombreArchivo = `${baseName}_Resultados.xlsx`;
-      const uri = FileSystem.cacheDirectory + nombreArchivo;
-
-      // 8. Escribir el archivo Excel en el caché (Sin cambios)
-      await FileSystem.writeAsStringAsync(uri, wbout, {
-        encoding: FileSystem.EncodingType.Base64
-      });
-
-      // 9. Compartir el archivo (SOLO SE LLAMA UNA VEZ) (Sin cambios)
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: 'Compartir Resultados (.xlsx)'
-      });
-      
-      // 10. Limpiar y volver al Home (Tu código original - sin cambios)
+    // Función auxiliar para 'Limpieza' (Paso 10)
+    // La movemos aquí para poder llamarla desde el Alert
+    const limpiarDatosYNavegar = async () => {
       await Notifications.cancelAllScheduledNotificationsAsync();
       await AsyncStorage.multiRemove([
         "gruposData",
@@ -659,15 +640,120 @@ const exportarMatrices = async () => {
       setSampleName("");
       setHideAddButtons(false);
       router.replace("/");
-      
-    } catch (e) {
-      console.error("Error al exportar:", e);
-      Alert.alert("Error", "No se pudo generar o compartir el archivo Excel.");
-    } finally {
-      // 11. Pase lo que pase, re-habilita el botón (Sin cambios)
-      setIsExporting(false);
+    };
+
+    // Función auxiliar para 'Compartir'
+    const compartirArchivo = async () => {
+      try {
+        const uri_cache = FileSystem.cacheDirectory + nombreArchivo;
+        await FileSystem.writeAsStringAsync(uri_cache, wbout, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        await Sharing.shareAsync(uri_cache, { mimeType, dialogTitle: 'Compartir Resultados (.xlsx)' });
+        return true; // Éxito
+      } catch (shareError) {
+        console.error("Error al compartir:", shareError);
+        Alert.alert("Error", "No se pudo compartir el archivo.");
+        return false; // Fallo
+      }
+    };
+
+    // Función auxiliar para 'Guardar' (Android SAF)
+    const guardarEnAlmacenamiento = async () => {
+      // (Esta función asume que Platform.OS === 'android')
+      try {
+        // 1. Pedir permiso para ELEGIR un directorio (el usuario elegirá "Descargas")
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        
+        if (permissions.granted) {
+          // El usuario concedió permiso y eligió un directorio
+          const directoryUri = permissions.directoryUri;
+
+          // 2. Crear el archivo en ese directorio
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, nombreArchivo, mimeType);
+          
+          // 3. Escribir los datos (base64) en el archivo
+          await FileSystem.writeAsStringAsync(fileUri, wbout, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          Alert.alert("Éxito", `Archivo "${nombreArchivo}" guardado con éxito.`);
+          return true; // Éxito
+
+        } else {
+          // El usuario canceló la selección de directorio
+          Alert.alert("Cancelado", "No se seleccionó un directorio.");
+          return false; // Cancelado por usuario
+        }
+      } catch (safError) {
+        console.error("Error con StorageAccessFramework:", safError);
+        Alert.alert("Error de guardado", "No se pudo guardar el archivo. Se intentará compartir como alternativa.");
+        // Plan B: Si SAF falla, intentar 'Compartir'
+        return await compartirArchivo();
+      }
+    };
+
+    // --- Flujo principal (Preguntar al usuario) ---
+
+    if (Platform.OS === 'android') {
+      // En Android, damos ambas opciones
+      Alert.alert(
+        "Exportar Resultados",
+        "¿Qué deseas hacer con el archivo?",
+        [
+          {
+            text: "Cancelar",
+            style: "cancel",
+            onPress: () => {
+              // (2) Si cancela, solo re-habilita el botón
+              setIsExporting(false);
+            }
+          },
+          {
+            text: "Compartir",
+            onPress: async () => {
+              const completado = await compartirArchivo();
+              if (completado) {
+                await limpiarDatosYNavegar();
+              }
+              setIsExporting(false); // (2) Re-habilita al terminar
+            }
+          },
+          {
+            text: "Guardar en Almacenamiento",
+            onPress: async () => {
+              const completado = await guardarEnAlmacenamiento();
+              if (completado) {
+                await limpiarDatosYNavegar();
+              }
+              setIsExporting(false); // (2) Re-habilita al terminar
+            }
+          }
+        ],
+        { cancelable: false } // Evita que se cierre al tocar fuera
+      );
+      // La función termina aquí para Android. (isExporting sigue true)
+      // El 'setIsExporting(false)' se llama DENTRO de los 'onPress'.
+
+    } else {
+      // En iOS, solo compartimos (lógica original)
+      const completado = await compartirArchivo();
+      if (completado) {
+        await limpiarDatosYNavegar();
+      }
+      setIsExporting(false); // (2) Re-habilita al terminar (iOS)
     }
-  };
+
+  } catch (e) {
+    // (3) Re-habilita si hay un error en la *creación* del Excel
+    console.error("Error al exportar (fase de creación):", e);
+    Alert.alert("Error", "No se pudo generar el archivo Excel.");
+    setIsExporting(false);
+  }
+  // (4) Ya no hay 'finally', porque el estado 'isExporting'
+  // se maneja de forma asíncrona dentro de los 'onPress' (Android)
+  // o al final del bloque 'else' (iOS).
+};
 
 const sinIniciar   = [];
 const enCurso      = [];
@@ -684,10 +770,10 @@ patientsWithIntervals.forEach(p => {
 // 2) Preparamos los datos a mostrar según el filter
 let dataToShow = [];
 
-if (filter === 'NOT_STARTED') {
+if (filter === 'SIN_INICIAR') {
   dataToShow = sinIniciar;
 }
-else if (filter === 'RUNNING') {
+else if (filter === 'CURSO') {
   // a) separamos quienes ya cumplieron el tiempo y esperan confirmación (retardo)
   const retardo = enCurso.filter(p => {
     const t = temporizadores[p.id] || {};
@@ -714,88 +800,103 @@ else if (filter === 'RUNNING') {
   // d) concatenamos para el orden final
   dataToShow = [...retardo, ...restante];
 }
-else if (filter === 'DONE') {
+else if (filter === 'FINALIZADO') {
   dataToShow = finalizados;
 }
 
 // 3) Botón Terminar solo si TODOS están en finalizados
 const showTerminar = finalizados.length === patientsWithIntervals.length;
 
-  return (
-    
-   <View style={extraccionesStyles.extraccionesScreenContainer}>
-    
-      <View style={extraccionesStyles.topBarCard}>
-        <SafeAreaView>
-          <Text style={extraccionesStyles.title}>Próximas Extracciones</Text>
-          <Text style={extraccionesStyles.subtitle}>{sampleName}</Text>
-        </SafeAreaView>
-        <TouchableOpacity
-            style={buttonStyles.backButton}
-            onPress={() => router.push("esquema")}  // o navigation.goBack(), router.back(), etc.
-            activeOpacity={0.7}
-          >
-          <MaterialIcons name="arrow-back" size={32} color="#fff" />
-      </TouchableOpacity>
+return (
 
-              {/* --- Botón rojo en la esquina superior --- */}
-      <TouchableOpacity style={extraccionesStyles.abortButton} onPress={confirmarFin}  activeOpacity={0.7}> 
-        <MaterialCommunityIcons name="close" size={24} color="rgb(0, 0, 0)" />
-      </TouchableOpacity>
-
-
-    <View style={extraccionesStyles.filterRow}>
-      {[ 
-        ['NOT_STARTED','Sin Iniciar'],
-        ['RUNNING',  'En curso'],
-        ['DONE',     'Finalizados'],
-      ].map(([key, label]) => (
-        <TouchableOpacity
-          key={key}
-          style={[
-            extraccionesStyles.filterButton,
-            filter === key && extraccionesStyles.filterButtonActive
-          ]}
-          onPress={() => setFilter(key)}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={grupoStyles.headerContainer}>
+        <TouchableOpacity onPress={() => router.back()} style={grupoStyles.backButton}>
+          <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
+        </TouchableOpacity>  
+        <Text style={grupoStyles.headerTitle}>{sampleName || "Muestra Farmacológica"}</Text>  
+        <TouchableOpacity 
+          onPress={confirmarFin} 
+          // 3. --- CAMBIO: Añadimos estilo para posicionar la 'X' ---
+          style={{
+            position: 'absolute',
+            right: RFValue(15), // Ajusta 'right' (15 es un valor común)
+            top: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            padding: 5
+          }}
         >
-          <Text
-            style={[
-              extraccionesStyles.filterText,
-              filter === key && extraccionesStyles.filterTextActive
-            ]}
-          >
-            {label}
-          </Text>
-          {filter === key && <View style={extraccionesStyles.filterUnderline}/>}
-        </TouchableOpacity>
-      ))}
-    </View>
-    </View>
-   
-      <FlatList
-        data={dataToShow}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-        <Paciente
-          paciente={item}
-          temp={temporizadores[item.id]}
-          grupos={grupos}
-          handlePlay={handlePlay}
-          iniciarSiguienteIntervalo={iniciarSiguienteIntervalo}
-          highlightedId={highlightedId}
-          setHighlightedId={setHighlightedId}
-        />
-       )}
-        contentContainerStyle={{ padding: 16, paddingHorizontal: 16 }}
-      />
+          <MaterialIcons name="close" size={RFValue(26)} color="#E53935" />
+        </TouchableOpacity>  
+      </View>  
+     
+     <View style={[styles.container, { alignItems: 'stretch' }]}>
 
-      <View style={extraccionesStyles.botonesContainer}>
+        {/* 6. ELIMINADO: El <View style={extraccionesStyles.topBarCard}> (cabezal morado) se borra */}
+        
+        {/* 7. MOVIDO: Los filtros ahora van aquí, sobre fondo gris */}
+        <View style={extraccionesStyles.filterRow}>
+          {[
+            ['SIN_INICIAR', 'SIN INICIAR'],
+            ['CURSO', 'EN CURSO'],
+            ['FINALIZADO', 'FINALIZADOS'],
+          ].map(([key, label]) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                extraccionesStyles.filterButton,
+                filter === key && extraccionesStyles.filterButtonActive
+              ]}
+              onPress={() => setFilter(key)}
+            >
+              <Text
+                style={[
+                  extraccionesStyles.filterText,
+                  filter === key && extraccionesStyles.filterTextActive
+                ]}
+              >
+                {label}
+              </Text>
+              {filter === key && <View style={extraccionesStyles.filterUnderline}/>}
+            </TouchableOpacity>
+          ))}
+        </View>
+   
+        {/* 8. CAMBIO: FlatList ajustado para el nuevo layout */}
+<FlatList
+          data={dataToShow}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            // ¡AHORA SÍ! Renderizamos solo el componente Paciente,
+            // que ya tiene sus propios estilos de tarjeta.
+            <Paciente
+              paciente={item}
+              temp={temporizadores[item.id]}
+              grupos={grupos}
+              handlePlay={handlePlay}
+              iniciarSiguienteIntervalo={iniciarSiguienteIntervalo}
+              highlightedId={highlightedId}
+              setHighlightedId={setHighlightedId}
+            />
+          )}
+        />
+
+      </View>
+
+      {/* 10. CAMBIO: Contenedor de botón inferior (de globalStyles) */}
+      <View style={styles.bottomButtonContainer}>
         {showTerminar  && (
-        <TouchableOpacity style={buttonStyles.button} onPress={exportarMatrices}>
-          <Text style={extraccionesStyles.title}>Exportar Datos</Text>
+        <TouchableOpacity 
+          // 11. CAMBIO: Usando estilo global
+          style={styles.primaryButton} 
+          onPress={exportarMatrices}
+        >
+          {/* 12. CAMBIO: Usando texto de botón global */}
+          <Text style={styles.primaryButtonText}>Exportar Datos</Text>
         </TouchableOpacity>)}
       </View>
-    </View>
+    </SafeAreaView>
     
   );
 };

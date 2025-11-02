@@ -1,249 +1,194 @@
-// ModalPacienteSimple.js
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Modal,
   View,
   Text,
   TextInput,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
-  Dimensions,
+  TouchableWithoutFeedback,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
-  StatusBar,
-  Keyboard,
+  Modal, 
 } from "react-native";
-import modalStyles from "../styles/modalStyles";
-import buttonStyles from '../styles/buttonStyles';
 import { MaterialIcons } from "@expo/vector-icons";
+// 1. Usamos los mismos estilos que ModalGrupo
+import modalStyles from "../styles/modalStyles"; 
+import { RFValue } from "react-native-responsive-fontsize";
 
-const { width, height } = Dimensions.get("window");
-const SBH = StatusBar.currentHeight || 0;
-const SCROLL_PADDING_TOP = 100;
-const FOOTER_HEIGHT = 100;
-
-
-
-export default function ModalPaciente({ visible, onClose, onAdd, paciente }) {
-  // — tus estados de campos —
-  const [grupo, setGrupo] = useState("");
+// 2. Mantenemos el nombre y los props del componente
+const ModalIndividuo = ({ visible, onClose, onSave, paciente }) => {
+  
+  // 3. Mantenemos la lógica y los estados del modal morado
   const [nombre, setNombre] = useState("");
-  const [sexo, setSexo] = useState("");
   const [edad, setEdad] = useState("");
+  const [sexo, setSexo] = useState("");
   const [peso, setPeso] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [grupo, setGrupo] = useState(""); // Campo del modal morado
 
-  // — efecto para poblar datos de `paciente` —
+  const nameRef = useRef(null); // Tomado de ModalGrupo para el focus
+
   useEffect(() => {
     if (paciente) {
-      setGrupo(paciente.grupoName || "");
       setNombre(paciente.nombre || "");
-      setEdad(paciente.edad?.toString() || "");
+      setEdad(paciente.edad || "");
       setSexo(paciente.sexo || "");
-      setPeso(paciente.peso?.toString() || "");
+      setPeso(paciente.peso || "");
       setDescripcion(paciente.descripcion || "");
+      setGrupo(paciente.grupoName || "N/A"); // Asumo que el 'paciente' tiene 'grupoName'
     } else {
-      setGrupo("");
+      // Limpiar campos si no hay paciente
       setNombre("");
       setEdad("");
       setSexo("");
       setPeso("");
       setDescripcion("");
+      setGrupo("");
     }
-  }, [paciente]);
+  }, [paciente]); // Se actualiza si el 'paciente' cambia
 
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-useEffect(() => {
-  const showSub = Keyboard.addListener("keyboardDidShow", () => {
-    setKeyboardVisible(true);
-  });
-  const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-    setKeyboardVisible(false);
-  });
-  return () => {
-    showSub.remove();
-    hideSub.remove();
-  };
-}, []);
+  useEffect(() => {
+    // Auto-focus al abrir (lógica de ModalGrupo)
+    if (visible) {
+      setTimeout(() => nameRef.current?.focus(), 100);
+    }
+  }, [visible]);
 
   const handleSave = () => {
-    onAdd({ nombre, edad, sexo, peso, descripcion });
-    onClose();
+    // Usamos el prop 'onSave'
+    onSave({
+      nombre,
+      edad,
+      sexo,
+      peso,
+      descripcion,
+    });
   };
 
-  
-
-  if (!visible) return null;
-
+  // 4. Usamos la ESTRUCTURA del modal blanco (ModalGrupo)
   return (
-    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.wrapper}>
-           <View style={styles.closeButtonContainer}>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialIcons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-          <KeyboardAvoidingView
-              behavior={Platform.OS === "android" ? "height" : "padding"}
-              keyboardVerticalOffset={SBH + 20}
-              style={styles.flex}
-          >
-          <View style={{ flex: 1, overflow: "hidden" }}>
-            {/* Área scrollable */}
-            <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            >
-            <Text style={modalStyles.label}>Grupo:</Text>
-            <View style={modalStyles.inputContainer}>
-              <Text style={modalStyles.input}>{grupo}</Text>
-            </View>
+    <Modal
+      transparent={true} 
+      visible={visible} 
+      animationType="fade" 
+      onRequestClose={onClose} 
+    >
+      <TouchableWithoutFeedback onPress={() => {
+        Keyboard.dismiss();
+        onClose();
+      }}>
+        <View style={modalStyles.overlay}>
+          
+      <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+          style={modalStyles.kavWrapper}
+      >
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={modalStyles.modalContainer}>
+                
+                {/* Header (estilo ModalGrupo) */}
+                <View style={modalStyles.modalHeader}>
+                  <Text style={modalStyles.modalTitle}>
+                    {/* Usamos un título basado en la lógica de ModalIndividuo */}
+                    {paciente?.nombre ? "Editar Individuo" : "Agregar Individuo"}
+                  </Text>
+                  <TouchableOpacity onPress={onClose}>
+                    <MaterialIcons name="close" size={RFValue(24)} color="#333" />
+                  </TouchableOpacity>
+                </View>
 
-            <Text style={modalStyles.label}>Identificador:</Text>
-            <View style={modalStyles.inputContainer}>
-              <TextInput
-                style={modalStyles.input}
-                value={nombre}
-                onChangeText={setNombre}
-                placeholder="Ingrese identificador"
-                placeholderTextColor="#888"
-              />
-            </View>
-
-            <Text style={modalStyles.label}>Edad:</Text>
-            <View style={modalStyles.inputContainer}>
-              <TextInput
-                style={modalStyles.input}
-                value={edad}
-                onChangeText={setEdad}
-                placeholder="Ingrese edad"
-                placeholderTextColor="#888"
-                keyboardType="numeric"
-              />
-            </View>
-
-            <Text style={modalStyles.label}>Sexo:</Text>
-            <View style={modalStyles.inputContainer}>
-              <TextInput
-                style={modalStyles.input}
-                value={sexo}
-                onChangeText={setSexo}
-                placeholder="Ingrese sexo"
-                placeholderTextColor="#888"
-              />
-            </View>
-
-            <Text style={modalStyles.label}>Peso:</Text>
-            <View style={modalStyles.inputContainer}>
-              <TextInput
-                style={modalStyles.input}
-                value={peso}
-                onChangeText={setPeso}
-                placeholder="Ingrese peso"
-                placeholderTextColor="#888"
-                keyboardType="numeric"
-              />
-            </View>
-
-            <Text style={modalStyles.label}>Descripción:</Text>
-            <View style={modalStyles.inputContainer}>
-              <TextInput
-                style={modalStyles.input}
-                value={descripcion}
-                onChangeText={setDescripcion}
-                placeholder="Ingrese descripción"
-                placeholderTextColor="#888"
-              />
-            </View>
-            </ScrollView>
-          </View>
-          </KeyboardAvoidingView>
-         
-          {!keyboardVisible && (
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={buttonStyles.button}
-                onPress={handleSave}
-                activeOpacity={0.7}
+                {/* Zona scrollable (estilo ModalGrupo) */}
+                <ScrollView
+                  style={modalStyles.scrollView}
+                  contentContainerStyle={modalStyles.scrollContainer}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
                 >
-                <Text style={buttonStyles.text}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
-          )}
+                  
+                  {/* 5. Usamos los CAMPOS del modal morado, 
+                         con los ESTILOS del modal blanco */}
+                  
+                  <Text style={modalStyles.label}>Grupo:</Text>
+                  <TextInput
+                    style={[modalStyles.input, { backgroundColor: '#E0E0E0', color: '#666' }]} // Deshabilitado
+                    value={grupo}
+                    editable={false}
+                  />
+
+                  <Text style={modalStyles.label}>Identificador:</Text>
+                  <TextInput
+                    ref={nameRef} // Asignamos la ref para el auto-focus
+                    style={modalStyles.input}
+                    value={nombre}
+                    onChangeText={setNombre}
+                    placeholder="Ingrese identificador"
+                    placeholderTextColor="#999"
+                  />
+            
+                  <Text style={modalStyles.label}>Edad:</Text>
+                  <TextInput
+                    style={modalStyles.input}
+                    value={edad}
+                    onChangeText={setEdad}
+                    placeholder="Ingrese edad"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+
+                  <Text style={modalStyles.label}>Sexo:</Text>
+                  <TextInput
+                    style={modalStyles.input}
+                    value={sexo}
+                    onChangeText={setSexo}
+                    placeholder="Ingrese sexo (M/F)"
+                    placeholderTextColor="#999"
+                  />
+
+                  <Text style={modalStyles.label}>Peso:</Text>
+                  <TextInput
+                    style={modalStyles.input}
+                    value={peso}
+                    onChangeText={setPeso}
+                    placeholder="Ingrese peso (kg)"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+
+                  <Text style={modalStyles.label}>Descripción:</Text>
+                  <TextInput
+                    style={modalStyles.input}
+                    value={descripcion}
+                    onChangeText={setDescripcion}
+                    placeholder="Ingrese descripción"
+                    placeholderTextColor="#999"
+                    multiline
+                  />
+                  
+                  {/* Botón DENTRO del ScrollView (estilo ModalGrupo) */}
+                  <View style={modalStyles.modalFooter}>
+                    <TouchableOpacity
+                      style={modalStyles.primaryButton}
+                      onPress={handleSave} // Usamos el handler del modal morado
+                      activeOpacity={0.7}
+                    >
+                      <Text style={modalStyles.primaryButtonText}>
+                        Guardar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  wrapper: {
-    width: width,
-    height: "88%",      
-    backgroundColor: "#873B8C",
-    borderTopLeftRadius:40,
-    borderTopRightRadius:40,
-    overflow: "hidden",
-    paddingTop: 60,
-  },
-  scrollWrapper: {
-    flex: 1,
-    width: "100%",
-    overflow: "hidden",            // recorta lo que quede arriba
-  },
-  scroll: {
-    flex: 1,
-    width: "100%",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingBottom: FOOTER_HEIGHT + 16,
-    
-  },
-  item: {
-    marginBottom: 12,
-    padding: 12,
-    backgroundColor: "#eee",
-    borderRadius: 4,
-  },
-  itemText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  footer: {
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  footerText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  closeButtonContainer: {
-    position: "absolute",
-    top: 16,
-    right: 30,
-    zIndex: 10,
-  },
-  closeButtonText: {
-    fontSize: 30,
-    color: "#fff",
-    fontWeight: "bold",
-    lineHeight: 28,
-  },
-});
+// 6. Eliminamos todos los 'styles' locales del modal morado
 
+export default ModalIndividuo;
