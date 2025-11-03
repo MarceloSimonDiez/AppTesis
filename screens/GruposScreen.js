@@ -116,9 +116,9 @@ const GrupoScreen = () => {
       
       {/* --- NUEVO: Encabezado como en la imagen --- */}
       <View style={grupoStyles.headerContainer}>
-        <TouchableOpacity onPress={() => router.back()} style={grupoStyles.backButton}>
+        {/* <TouchableOpacity onPress={() => router.back()} style={grupoStyles.backButton}>
           <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <Text style={grupoStyles.headerTitle}>{sampleName || "Muestra Farmacológica"}</Text>
       </View>
 
@@ -175,7 +175,7 @@ const GrupoScreen = () => {
           {/* Botón CONTINUAR (Estilo modificado) */}
           <TouchableOpacity
             style={grupoStyles.secondaryButton} // <-- Nuevo estilo
-            onPress={() => router.push({ pathname: "paciente" })}
+            onPress={() => router.push({ pathname: "esquema" })}
             activeOpacity={0.7}
           >
             <Text style={grupoStyles.secondaryButtonText}>CONTINUAR</Text>

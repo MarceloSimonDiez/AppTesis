@@ -1,4 +1,4 @@
-import React, { useContext, useEffect,useState, useReducer } from "react";
+import React, { useContext, useEffect, useState, useReducer, useMemo } from "react"; // --- CAMBIO: Se añade 'useMemo'
 import * as MediaLibrary from 'expo-media-library';
 import { View, Text,  TouchableOpacity, FlatList, SafeAreaView, AppState,Platform,InteractionManager, Alert } from "react-native";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
@@ -18,12 +18,17 @@ import { RFValue } from "react-native-responsive-fontsize";
 import grupoStyles from "../styles/grupoStyles";
 
 // Devuelve 'SIN_INICIAR' | 'CURSO' | 'FINALIZADO' según el estado de un paciente
-function getStatus(paciente, timer) {
+function getStatus(paciente, timer, esquemas = []) { // Añadido 'esquemas'
+  if (!paciente.esquemaId) return 'SIN_INICIAR';
+  const esquema = esquemas.find(e => e.id === paciente.esquemaId);
+  if (!esquema || !esquema.intervalos || esquema.intervalos.length === 0) {
+    return 'SIN_INICIAR';
+  }
   const idx   = timer?.intervalIndex ?? 0;
   const active= timer?.activo === true;
   const fin   = timer?.finished === true;
   const done  = timer?.allFinished === true;
-  const curInt= paciente.intervalos?.[idx] || {};
+  const curInt = esquema.intervalos?.[idx] || {};
   const isDay = curInt.tiempo?.days > 0;
 
   if (done) return 'FINALIZADO';
@@ -36,12 +41,13 @@ function getStatus(paciente, timer) {
 const ExtraccionesScreen = () => {
   const router = useRouter();
   const {grupos,pacientes,
-    intervalos,
+    esquemas,
     dataLoaded,
     setGrupos,
     setPacientes,
     setIntervalos,
     sampleName,
+    setEsquemas,
     setSampleName,
     temporizadores,       
     setTemporizadores  
@@ -49,7 +55,7 @@ const ExtraccionesScreen = () => {
   const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
   const [filter, setFilter] = useState('SIN_INICIAR');
   const [isExporting, setIsExporting] = useState(false);
-
+  const [basePacientesList, setBasePacientesList] = useState([]);
   // Utilizamos useReducer para forzar un re-render cada segundo.
   // Cada vez que se llama a forceUpdate() se actualiza un estado interno que no usamos,
   // lo que provoca que React vuelva a renderizar el componente.
@@ -112,32 +118,7 @@ const ExtraccionesScreen = () => {
     });
   }, [patientsWithIntervals, temporizadores]);
 
-  useEffect(() => {
-    if (!patientsWithIntervals.length) return;  // nada que recargar aún
-  
-    const loadPersisted = async () => {
-      try {
-        const recargados = await Promise.all(
-          patientsWithIntervals.map(async p => {
-            const [inicio, stored] = await Promise.all([
-              AsyncStorage.getItem(`inicio-${p.id}`),
-              AsyncStorage.getItem(`intervalosTomados-${p.id}`)
-            ]);
-            return {
-              ...p,
-              ...(inicio   ? { inicio }    : {}),
-              ...(stored   ? { intervalos: JSON.parse(stored) } : {}),
-            };
-          })
-        );
-        setPatientsWithIntervals(recargados);
-      } catch (e) {
-        console.error("Error cargando persistencia:", e);
-      }
-    };
-  
-    loadPersisted();
-  }, [patientsWithIntervals]);
+
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -169,70 +150,63 @@ const ExtraccionesScreen = () => {
     }
   }, []);
   
+// MODIFICA ESTE BLOQUE
   useEffect(() => {
-    const nuevosPacientes = pacientes.map((p) => ({
-      ...p,
-      intervalos: intervalos.map((i) => ({
-        ...i,
-        tiempo: { ...i.tiempo },
-        outcome: null,
-        tiempoRespuesta: null,
-      })),
-    }));
-    setPatientsWithIntervals(nuevosPacientes);
-  }, [pacientes, intervalos]);
+      const task = InteractionManager.runAfterInteractions(() => {
+      // (Esta lógica interna está perfecta)
+      const pacientesConEsquema = pacientes.filter(p => p.esquemaId);
+      const nuevosPacientes = pacientesConEsquema.map((p) => { 
+        const esquemaDelPaciente = esquemas.find(e => e.id === p.esquemaId);    
+        const intervalosDelEsquema = esquemaDelPaciente ? esquemaDelPaciente.intervalos : [];
+        const intervalosParaPaciente = intervalosDelEsquema.map((i) => ({
+          ...i,
+          tiempo: { ...i.tiempo },
+          outcome: null,
+          tiempoRespuesta: null,
+        }));
+        return {
+          ...p,
+          intervalos: intervalosParaPaciente, 
+        };
+      });
+      // No seteamos el estado final, sino el estado base.
+      setBasePacientesList(nuevosPacientes);
+    });
 
-  useEffect(() => {
-    const cargarPacientesConIntervalos = async () => {
-      try {
-        const data = await AsyncStorage.getItem('intervalosTomados');
-        if (data) {
-          const parsed = JSON.parse(data);
-          setPatientsWithIntervals(parsed);
-        } else {
-          // Si no hay datos previos, armamos la estructura
-          const nuevosPacientes = pacientes.map((p) => ({
-            ...p,
-            intervalos: intervalos.map((i) => ({
-              ...i,
-              tiempo: { ...i.tiempo },
-              outcome: null,
-            })),
-          }));
-          setPatientsWithIntervals(nuevosPacientes);
-        }
-      } catch (err) {
-        console.error("Error cargando intervalos tomados:", err);
-      }
-    };
+    return () => task.cancel();
+    
+  }, [pacientes, esquemas]); // <--- (Las dependencias están bien)
+
   
-    cargarPacientesConIntervalos();
-  }, [pacientes, intervalos]);
-  
+// MODIFICA ESTE BLOQUE
   useEffect(() => {
     const cargarTemporizadores = async () => {
-      if (pacientes.length === 0) return;
-  
+      if (basePacientesList.length === 0) {
+        setTemporizadores({});
+        setPatientsWithIntervals([]);
+        return;
+      }
+
       const nuevosTimers = {};
       const nuevosPatientsWithIntervals = [];
   
-      for (const paciente of pacientes) {
+      
+      for (const paciente of basePacientesList) {
         try {
-          const dataStr = await AsyncStorage.getItem(`temporizador-${paciente.id}`);
-          const intervalosTomadosStr = await AsyncStorage.getItem(`intervalosTomados-${paciente.id}`);
-  
+
+        const [dataStr, intervalosTomadosStr, inicioStr] = await Promise.all([
+            AsyncStorage.getItem(`temporizador-${paciente.id}`),
+            AsyncStorage.getItem(`intervalosTomados-${paciente.id}`),
+            AsyncStorage.getItem(`inicio-${paciente.id}`) 
+          ]);
+
           let temporizadorGuardado = null;
           let intervalosGuardados = null;
   
-          if (dataStr) {
-            temporizadorGuardado = JSON.parse(dataStr);
-          }
+          if (dataStr) temporizadorGuardado = JSON.parse(dataStr);
+          if (intervalosTomadosStr) intervalosGuardados = JSON.parse(intervalosTomadosStr);
   
-          if (intervalosTomadosStr) {
-            intervalosGuardados = JSON.parse(intervalosTomadosStr);
-          }
-  
-          // Calcular estado del temporizador si existe
+          
           if (temporizadorGuardado) {
             const { startTime, intervalIndex, duration, zeroReachedAt, finished, allFinished } = temporizadorGuardado;
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -248,11 +222,11 @@ const ExtraccionesScreen = () => {
               notificationId: null,
             };
           }
-  
-          // Aplicar los intervalos tomados a cada paciente
+
           nuevosPatientsWithIntervals.push({
             ...paciente,
-            intervalos: intervalos.map((i, idx) => {
+            inicio: inicioStr || null,
+            intervalos: (paciente.intervalos || []).map((i, idx) => { 
               const existente = intervalosGuardados?.[idx];
               return {
                 ...i,
@@ -268,12 +242,14 @@ const ExtraccionesScreen = () => {
         }
       }
   
+      // 4. SETEAMOS AMBOS ESTADOS JUNTOS
+      // Esto soluciona el "flicker"
       setTemporizadores(nuevosTimers);
       setPatientsWithIntervals(nuevosPatientsWithIntervals);
     };
   
     cargarTemporizadores();
-  }, [pacientes]);
+  }, [basePacientesList]); 
   
   useEffect(() => {
     const subscription = AppState.addEventListener("change", async (nextAppState) => {
@@ -566,194 +542,232 @@ const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
 };
  
 
-const exportarMatrices = async () => {
-  // --- Evita doble clic ---
-  if (isExporting) return;
-  setIsExporting(true); // (1) Se pone en true
+// Esta es la función completa y corregida
+  const exportarMatrices = async () => {
+    // --- Evita doble clic ---
+    if (isExporting) return;
+    setIsExporting(true);
 
-  try {
-    // 1. Armar CSV datos (Tu código original - Sin cambios)
-    const cabeceraDatos = ["Nombre", "Edad", "Sexo", "Peso", "Descripción", "Grupo"];
-    const filasDatos = patientsWithIntervals.map(p => [
-      p.nombre, p.edad, p.sexo, p.peso, p.descripcion, p.grupoName
-    ]);
-    const datosArray = [cabeceraDatos, ...filasDatos];
+    try {
+      // --- INICIO DE LA LÓGICA DE HOJAS ---
+      
+      const wb = XLSX.utils.book_new();
 
-    // 2. Armar CSV muestreo (Tu código original - Sin cambios)
-    const headerMuestreo = [
-      "identificador",
-      "inicio",
-      ...intervalos.map((i, idx) => {
-        if (i.tiempo.days > 0) return `t${idx + 1} ${i.tiempo.days}d`;
-        const hh = String(i.tiempo.hours).padStart(2, "0");
-        const mm = String(i.tiempo.minutes).padStart(2, "0");
-        return `t${idx + 1} ${hh}:${mm}`;
-      })
-    ];
-    const filasMuestreo = patientsWithIntervals.map(p => {
-      const identificador = p.nombre;
-      const inicio = p.inicio ? new Date(p.inicio).toLocaleTimeString() : "";
-    
-      const outcomes = p.intervalos.map(i => {
-        if (i.outcome == null) return "";
-        const symbol = i.outcome === "1" ? "si" : "no";
-        const suffix = i.tiempoRespuesta ? ` (${i.tiempoRespuesta})` : "";
-        return symbol + suffix;
-      });
-    
-      return [identificador, inicio, ...outcomes];
-    });
-    const muestreoArray = [headerMuestreo, ...filasMuestreo];
-    
-    // 3, 4 y 5. Crear el libro de Excel (Tu código original - Sin cambios)
-    const wb = XLSX.utils.book_new();
-    const ws_datos = XLSX.utils.aoa_to_sheet(datosArray);
-    const ws_muestreo = XLSX.utils.aoa_to_sheet(muestreoArray);
-    XLSX.utils.book_append_sheet(wb, ws_datos, "Datos");
-    XLSX.utils.book_append_sheet(wb, ws_muestreo, "Muestreo");
-
-    // 6. Generar el archivo Excel en formato Base64 (Sin cambios)
-    const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-
-    // 7. Definir nombre y tipo (Sin cambios)
-    const baseName = sampleName.replace(/\s+/g, "");
-    const nombreArchivo = `${baseName}_Resultados.xlsx`;
-    const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-    // --- INICIO DE LA LÓGICA DE PREGUNTAR (NUEVO) ---
-
-    // Función auxiliar para 'Limpieza' (Paso 10)
-    // La movemos aquí para poder llamarla desde el Alert
-    const limpiarDatosYNavegar = async () => {
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      await AsyncStorage.multiRemove([
-        "gruposData",
-        "pacientesData",
-        "intervalosData",
-        ...patientsWithIntervals.map(p => `intervalosTomados-${p.id}`),
-        ...patientsWithIntervals.map(p => `inicio-${p.id}`),
+      // --- HOJA 1: DATOS GENERALES ---
+      // (Esta hoja lista a todos los pacientes y sus datos demográficos)
+      const cabeceraDatos = [
+        // "ID Paciente",  // <-- Eliminado
+        "Nombre", 
+        "Sexo", 
+        "Edad", 
+        "Peso", 
+        "Descripción", 
+        "Grupo", 
+        "Esquema Asignado"
+      ];
+      const filasDatos = patientsWithIntervals.map(p => [
+        // p.id, // <-- Eliminado
+        p.nombre, 
+        p.sexo, 
+        p.edad, 
+        p.peso, 
+        p.descripcion, 
+        p.grupoName, 
+        p.esquemaName || "N/A"
       ]);
+      const ws_datos = XLSX.utils.aoa_to_sheet([cabeceraDatos, ...filasDatos]);
+      XLSX.utils.book_append_sheet(wb, ws_datos, "Datos Generales");
 
-      setGrupos([]);
-      setPacientes([]);
-      setIntervalos([]);
-      setSampleName("");
-      setHideAddButtons(false);
-      router.replace("/");
-    };
+      // --- HOJAS 2, 3...: UNA POR ESQUEMA ---
+      
+      // 1. Encontrar los esquemas que sí están en uso
+      const esquemasEnUso = esquemas.filter(e => 
+        patientsWithIntervals.some(p => p.esquemaId === e.id)
+      );
 
-    // Función auxiliar para 'Compartir'
-    const compartirArchivo = async () => {
-      try {
-        const uri_cache = FileSystem.cacheDirectory + nombreArchivo;
-        await FileSystem.writeAsStringAsync(uri_cache, wbout, {
-          encoding: FileSystem.EncodingType.Base64
-        });
-        await Sharing.shareAsync(uri_cache, { mimeType, dialogTitle: 'Compartir Resultados (.xlsx)' });
-        return true; // Éxito
-      } catch (shareError) {
-        console.error("Error al compartir:", shareError);
-        Alert.alert("Error", "No se pudo compartir el archivo.");
-        return false; // Fallo
-      }
-    };
-
-    // Función auxiliar para 'Guardar' (Android SAF)
-    const guardarEnAlmacenamiento = async () => {
-      // (Esta función asume que Platform.OS === 'android')
-      try {
-        // 1. Pedir permiso para ELEGIR un directorio (el usuario elegirá "Descargas")
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      // 2. Crear una hoja para cada esquema
+      for (const esquema of esquemasEnUso) {
         
-        if (permissions.granted) {
-          // El usuario concedió permiso y eligió un directorio
-          const directoryUri = permissions.directoryUri;
+        // Cabecera dinámica para este esquema
+        const cabeceraEsquema = [
+          // "ID Paciente", // <-- Eliminado
+          "Nombre", 
+          "Hora Inicio"
+        ];
+        
+        // CORRECCIÓN: Usamos 'esquema.intervalos'
+        (esquema.intervalos || []).forEach((intervalo, idx) => {
+          cabeceraEsquema.push(`T${idx + 1} (${intervalo.nombre})`);
+          cabeceraEsquema.push(`T${idx + 1} Hora Tomada`);
+          cabeceraEsquema.push(`T${idx + 1} Resp (seg)`);
+        });
 
-          // 2. Crear el archivo en ese directorio
-          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, nombreArchivo, mimeType);
+        const filasEsquema = [];
+        const pacientesDelEsquema = patientsWithIntervals.filter(p => p.esquemaId === esquema.id);
+        
+        for (const paciente of pacientesDelEsquema) {
+          const timer = temporizadores[paciente.id];
+          // CORRECCIÓN: Usamos 'timer.startTime' para la hora de inicio
+          const horaInicio = timer?.startTime 
+            ? new Date(timer.startTime).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            : "N/A";
+            
+          const filaPaciente = [
+            // paciente.id, // <-- Eliminado
+            paciente.nombre, 
+            horaInicio
+          ];
           
-          // 3. Escribir los datos (base64) en el archivo
-          await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          (esquema.intervalos || []).forEach((intervalo, idx) => {
+            const pIntervalo = paciente.intervalos[idx]; // Datos guardados del paciente
+            
+            const outcome = pIntervalo?.outcome == null ? "" : (pIntervalo.outcome === "1" ? "SI" : "NO");
+            const horaTomada = pIntervalo?.horaInicio
+              ? new Date(pIntervalo.horaInicio).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+              : "";
+            const tiempoResp = pIntervalo?.tiempoRespuesta ?? "";
+
+            filaPaciente.push(outcome);
+            filaPaciente.push(horaTomada);
+            filaPaciente.push(tiempoResp);
+          });
+          filasEsquema.push(filaPaciente);
+        }
+        
+        const ws_esquema = XLSX.utils.aoa_to_sheet([cabeceraEsquema, ...filasEsquema]);
+        const nombreHoja = esquema.nombre.substring(0, 30);
+        XLSX.utils.book_append_sheet(wb, ws_esquema, nombreHoja);
+      }
+      
+      // --- FIN DE LA LÓGICA DE HOJAS ---
+
+
+      // 6. Generar el archivo Excel en formato Base64
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
+      // 7. Definir nombre y tipo
+      const baseName = sampleName.replace(/\s+/g, "");
+      const nombreArchivo = `${baseName}_Resultados.xlsx`;
+      const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+      // --- INICIO DE LA LÓGICA DE PREGUNTAR (Y LIMPIEZA CORREGIDA) ---
+
+      const limpiarDatosYNavegar = async () => {
+        // 1. Cancelar todas las notificaciones pendientes
+        await Notifications.cancelAllScheduledNotificationsAsync();
+
+        // 2. Buscar TODAS las claves dinámicas (timers, intervalos)
+        const allKeys = await AsyncStorage.getAllKeys();
+        const dynamicKeysToRemove = allKeys.filter(key => 
+          key.startsWith('temporizador-') || 
+          key.startsWith('intervalosTomados-')
+        );
+
+        // 3. Definir claves estáticas (los nombres de tus datos en context/storage)
+        const staticKeysToRemove = [
+          'grupos',       // O 'gruposData', como lo tengas guardado
+          'pacientes',    // O 'pacientesData'
+          'esquemas',     // O 'esquemasData' / 'intervalosData'
+          'sampleName'
+        ];
+        
+        // 4. Borrar TODO (dinámico y estático) de AsyncStorage
+        await AsyncStorage.multiRemove([
+            ...dynamicKeysToRemove,
+            ...staticKeysToRemove
+        ]);
+  
+        // 5. Resetear el estado global (Context)
+        setGrupos([]);
+        setPacientes([]);
+        setEsquemas([]); 
+        setSampleName("");
+        setHideAddButtons(false); // <-- Importante: Muestra botones en inicio
+        
+        // 6. Navegar al inicio
+        router.replace("/");
+      };
+
+      // (El resto de las funciones 'compartirArchivo' y 'guardarEnAlmacenamiento' 
+      //  se quedan como las tenías)
+
+      const compartirArchivo = async () => {
+        try {
+          const uri_cache = FileSystem.cacheDirectory + nombreArchivo;
+          await FileSystem.writeAsStringAsync(uri_cache, wbout, {
             encoding: FileSystem.EncodingType.Base64
           });
-          
-          Alert.alert("Éxito", `Archivo "${nombreArchivo}" guardado con éxito.`);
+          await Sharing.shareAsync(uri_cache, { mimeType, dialogTitle: 'Compartir Resultados (.xlsx)' });
           return true; // Éxito
-
-        } else {
-          // El usuario canceló la selección de directorio
-          Alert.alert("Cancelado", "No se seleccionó un directorio.");
-          return false; // Cancelado por usuario
+        } catch (shareError) {
+          console.error("Error al compartir:", shareError);
+          Alert.alert("Error", "No se pudo compartir el archivo.");
+          return false; // Fallo
         }
-      } catch (safError) {
-        console.error("Error con StorageAccessFramework:", safError);
-        Alert.alert("Error de guardado", "No se pudo guardar el archivo. Se intentará compartir como alternativa.");
-        // Plan B: Si SAF falla, intentar 'Compartir'
-        return await compartirArchivo();
-      }
-    };
+      };
 
-    // --- Flujo principal (Preguntar al usuario) ---
-
-    if (Platform.OS === 'android') {
-      // En Android, damos ambas opciones
-      Alert.alert(
-        "Exportar Resultados",
-        "¿Qué deseas hacer con el archivo?",
-        [
-          {
-            text: "Cancelar",
-            style: "cancel",
-            onPress: () => {
-              // (2) Si cancela, solo re-habilita el botón
-              setIsExporting(false);
-            }
-          },
-          {
-            text: "Compartir",
-            onPress: async () => {
-              const completado = await compartirArchivo();
-              if (completado) {
-                await limpiarDatosYNavegar();
-              }
-              setIsExporting(false); // (2) Re-habilita al terminar
-            }
-          },
-          {
-            text: "Guardar en Almacenamiento",
-            onPress: async () => {
-              const completado = await guardarEnAlmacenamiento();
-              if (completado) {
-                await limpiarDatosYNavegar();
-              }
-              setIsExporting(false); // (2) Re-habilita al terminar
-            }
+      const guardarEnAlmacenamiento = async () => {
+        if (Platform.OS !== 'android') return await compartirArchivo();
+        try {
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (permissions.granted) {
+            const directoryUri = permissions.directoryUri;
+            const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, nombreArchivo, mimeType);
+            await FileSystem.writeAsStringAsync(fileUri, wbout, {
+              encoding: FileSystem.EncodingType.Base64
+            });
+            Alert.alert("Éxito", `Archivo "${nombreArchivo}" guardado con éxito.`);
+            return true;
+          } else {
+            Alert.alert("Cancelado", "No se seleccionó un directorio.");
+            return false;
           }
-        ],
-        { cancelable: false } // Evita que se cierre al tocar fuera
-      );
-      // La función termina aquí para Android. (isExporting sigue true)
-      // El 'setIsExporting(false)' se llama DENTRO de los 'onPress'.
+        } catch (safError) {
+          console.error("Error con StorageAccessFramework:", safError);
+          Alert.alert("Error de guardado", "No se pudo guardar el archivo. Se intentará compartir como alternativa.");
+          return await compartirArchivo();
+        }
+      };
 
-    } else {
-      // En iOS, solo compartimos (lógica original)
-      const completado = await compartirArchivo();
-      if (completado) {
-        await limpiarDatosYNavegar();
+      // --- Flujo principal (Preguntar al usuario - Sin cambios) ---
+      if (Platform.OS === 'android') {
+        Alert.alert(
+          "Exportar Resultados",
+          "¿Qué deseas hacer con el archivo?",
+          [
+            { text: "Cancelar", style: "cancel", onPress: () => setIsExporting(false) },
+            {
+              text: "Compartir",
+              onPress: async () => {
+                const completado = await compartirArchivo();
+                if (completado) await limpiarDatosYNavegar();
+                setIsExporting(false); 
+              }
+            },
+            {
+              text: "Guardar en Almacenamiento",
+              onPress: async () => {
+                const completado = await guardarEnAlmacenamiento();
+                if (completado) await limpiarDatosYNavegar();
+                setIsExporting(false);
+              }
+            }
+          ],
+          { cancelable: false }
+        );
+      } else {
+        // iOS
+        const completado = await compartirArchivo();
+        if (completado) await limpiarDatosYNavegar();
+        setIsExporting(false);
       }
-      setIsExporting(false); // (2) Re-habilita al terminar (iOS)
-    }
 
-  } catch (e) {
-    // (3) Re-habilita si hay un error en la *creación* del Excel
-    console.error("Error al exportar (fase de creación):", e);
-    Alert.alert("Error", "No se pudo generar el archivo Excel.");
-    setIsExporting(false);
-  }
-  // (4) Ya no hay 'finally', porque el estado 'isExporting'
-  // se maneja de forma asíncrona dentro de los 'onPress' (Android)
-  // o al final del bloque 'else' (iOS).
-};
+    } catch (e) {
+      console.error("Error al exportar (fase de creación):", e);
+      Alert.alert("Error", "No se pudo generar el archivo Excel.");
+      setIsExporting(false);
+    }
+  };
 
 const sinIniciar   = [];
 const enCurso      = [];
@@ -761,7 +775,7 @@ const finalizados  = [];
 
 patientsWithIntervals.forEach(p => {
   const temp = temporizadores[p.id] || {};
-  const status = getStatus(p, temp);
+  const status = getStatus(p, temp, esquemas);
   if      (status === 'SIN_INICIAR')  sinIniciar.push(p);
   else if (status === 'CURSO')        enCurso.push(p);
   else if (status === 'FINALIZADO')   finalizados.push(p);

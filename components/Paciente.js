@@ -105,8 +105,6 @@ export default function Paciente({
     <Animated.View
       style={[
         styles.cardContainer,
-        // ¡CAMBIO! Quitamos la opacidad de toda la tarjeta
-        // { opacity: blink } 
       ]}
     >
       {/* Barra lateral (Sin cambios) */}
@@ -125,7 +123,11 @@ export default function Paciente({
         {/* Contenido (Sin cambios) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: 'center' }}>
           <Text style={styles.muestraText}>{muestraTexto}</Text>
-          
+         
+          <Text style={styles.muestraText}> 
+            {paciente.esquemaName || "Sin Esquema"}
+          </Text>
+
           {(isDayInterval || temp?.allFinished) ? (
             <MaterialCommunityIcons name="check-circle-outline" size={32} color="#28a745" />
           ) : (!temp?.activo && !temp?.finished) && (

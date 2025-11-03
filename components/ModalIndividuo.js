@@ -56,7 +56,6 @@ const ModalIndividuo = ({ visible, onClose, onSave, paciente }) => {
   }, [visible]);
 
   const handleSave = () => {
-    // Usamos el prop 'onSave'
     onSave({
       nombre,
       edad,

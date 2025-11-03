@@ -12,7 +12,7 @@ const GROUP_COLORS = [
 export const GlobalProvider = ({ children }) => {
   const [grupos, setGrupos] = useState([]);
   const [pacientes, setPacientes] = useState([]);
-  const [intervalos, setIntervalos] = useState([]);
+  const [esquemas, setEsquemas] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [sampleName, setSampleName] = useState(null);
   const [temporizadores, setTemporizadores] = useState({});
@@ -59,6 +59,16 @@ const updateGroup = (id, name, description, cantidadPacientes) => {
 const deleteGroup = (id) => {
     setGrupos((prev) => prev.filter((g) => g.id !== id));
   };
+
+  const saveEsquemas = async (nuevosEsquemas) => {
+  try {
+    setEsquemas(nuevosEsquemas);
+    await AsyncStorage.setItem("esquemasData", JSON.stringify(nuevosEsquemas));
+  } catch (e) {
+    console.error("Error guardando esquemas", e);
+  }
+};
+
 
 useEffect(() => {
   AsyncStorage.setItem('colorIndex', String(colorIndex));
@@ -162,10 +172,10 @@ useEffect(() => {
 useEffect(() => {
   const loadIntervalos = async () => {
     try {
-      const savedIntervalos = await AsyncStorage.getItem("intervalosData");
+      const savedEsquemas = await AsyncStorage.getItem("esquemasData");
       //console.log("📥 Intervalos cargados al iniciar:", savedIntervalos);
-      if (savedIntervalos) {
-        setIntervalos(JSON.parse(savedIntervalos));
+      if (savedEsquemas) {
+        setEsquemas(JSON.parse(savedEsquemas));
       }
     } catch (e) {
       console.error("❌ Error al cargar intervalos:", e);
@@ -190,9 +200,20 @@ useEffect(() => {
     AsyncStorage.setItem('pacientesData', JSON.stringify(pacientes));
   }, [pacientes]);
 
+// Cargar los esquemas al inicio
   useEffect(() => {
-    AsyncStorage.setItem('intervalosData', JSON.stringify(intervalos));
-  }, [intervalos]);
+    const loadEsquemas = async () => { // <-- Mejor
+      try {
+        const savedEsquemas = await AsyncStorage.getItem("esquemasData");
+        if (savedEsquemas) {
+          setEsquemas(JSON.parse(savedEsquemas));
+        }
+      } catch (e) {
+        console.error("❌ Error al cargar esquemas:", e); // <-- Mejor
+      }
+    };
+    loadEsquemas(); // <-- Mejor
+  }, []);
 
   //console.log('🌐 GlobalProvider montado, temporizadores inicial:', temporizadores);
 
@@ -207,8 +228,9 @@ useEffect(() => {
       deleteGroup,            
       pacientes,
       setPacientes,
-      intervalos,
-      setIntervalos,
+      esquemas,
+      setEsquemas,
+      saveEsquemas,
       dataLoaded,
       sampleName,     
       setSampleName, 
