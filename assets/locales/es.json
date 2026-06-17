@@ -1,0 +1,147 @@
+{
+  "common": {
+    "agregar": "AGREGAR",
+    "continuar": "CONTINUAR",
+    "guardar": "GUARDAR",
+    "cancelar": "CANCELAR",
+    "dia": "Dia",
+    "dias": "Días",
+    "horas": "Horas",
+    "minutos": "Minutos",
+    "guardar_cambios": "GUARDAR CAMBIOS",
+    "crear_esquema": "CREAR ESQUEMA",
+    "confirmar_mayus": "CONFIRMAR",
+    "error": "Error"
+    
+  },
+  "modales": {
+    "grupo_titulo_nuevo": "Crear Grupo",
+    "grupo_titulo_editar": "Editar Grupo",
+    "grupo_nombre": "Nombre del Grupo",
+    "grupo_descripcion": "Descripción",
+    "grupo_cantidad": "Cantidad de Individuos",
+    "paciente_titulo": "Datos del Paciente",
+    "paciente_nombre": "Nombre",
+    "paciente_edad": "Edad",
+    "paciente_sexo": "Sexo",
+    "paciente_peso": "Peso (kg)",
+    "paciente_descripcion": "Descripción",
+    "individuo_editar": "Editar Individuo",
+    "individuo_agregar": "Agregar Individuo",
+    "grupo_label": "Grupo:",
+    "identificador_label": "Identificador:",
+    "identificador_placeholder": "Ingrese identificador",
+    "edad_placeholder": "Ingrese edad",
+    "sexo_placeholder": "Ingrese sexo (M/F)",
+    "peso_placeholder": "Ingrese peso (kg)"
+  },
+  "paciente_item": {
+    "proximo_muestreo": "Próximo muestreo en:",
+    "retardo": "RETARDO:",
+    "completado": "¡Muestreo completado!"
+  },
+  "home": {
+    "welcome": "Bienvenido",
+    "subtitle": "Ingrese un nombre para comenzar el muestreo",
+    "placeholder": "Nombre del estudio",
+    "boton": "EMPEZAR"
+  },
+"esquemas": {
+    "titulo_pantalla": "Mis Esquemas",
+    "titulo": "Crear Nuevo Esquema",
+    "nombre_placeholder": "Nombre del esquema",
+    "confirmar": "CONFIRMAR Y EDITAR",
+    "emptyState": {
+      "titulo": "No hay esquemas creados",
+      "subtitulo": "Presiona \"CREAR ESQUEMA\" para comenzar"
+    },
+    "editar_titulo": "Editar Esquema",
+    "nombre_label": "NOMBRE DEL ESQUEMA",
+    "nombre_ejemplo": "Ej: Esquema Diurno",
+    "intervalos_label": "INTERVALOS DE TIEMPO",
+    "intervalos": {
+      "vacio_titulo": "No hay intervalos creados",
+      "vacio_subtitulo": "Presiona \"AGREGAR\" para comenzar"
+    },
+    "seleccionar_tiempo": "SELECCIONAR TIEMPO",
+    "alerta_calendar": "Se agregará un evento en Calendar el día:",
+    "intervalo_singular": "intervalo",
+    "intervalo_plural": "intervalos",
+    "toma": "Toma",
+    "tiempo_label": "Tiempo",
+    "error_nombre_vacio": "El nombre del esquema no puede estar vacío."
+  },
+  "extracciones": {
+    "filtro_sin_iniciar": "SIN INICIAR",
+    "filtro_curso": "EN CURSO",
+    "filtro_finalizado": "FINALIZADOS",
+    "boton_exportar": "Exportar Datos",
+    "estado_exportando": "Exportando...",
+    "muestra": "Muestra",
+    "tiempo_restante": "tiempo restante",
+    "tiempo_retardo": "tiempo de retardo",
+    "alerta_titulo": "Finalizar Muestra",
+    "alerta_mensaje": "¿Estás seguro de que quieres finalizar la muestra actual y volver al inicio? ¡Los datos se borrarán si no los exportas!",
+    "alerta_exportar": "Exportar y Finalizar",
+    "channelName": "Alarmas de Intervalos",
+    "notif_titulo": "⏰ Último minuto",
+    "notif_body_con_nombre": "El paciente {{name}} está por finalizar.",
+    "notif_body_sin_nombre": "A uno de tus pacientes le falta poco para terminar.",
+    "si": "si",
+    "no": "no",
+    "muestra_por_defecto": "Muestra Farmacológica"
+  },
+  "grupos": {
+    "seccion_experimental": "GRUPO EXPERIMENTAL",
+    "modal": {
+      "editar": "Editar Grupo",
+      "agregar": "Agregar Grupo"
+    },
+    "form": {
+      "nombre": "Nombre:",
+      "descripcion": "Descripción:",
+      "cantidad_individuos": "Cantidad de Individuos:"
+    },
+    "emptyState": {
+      "titulo": "No hay grupos creados",
+      "subtitulo": "Presiona \"Agregar\" para comenzar"
+    }
+  },
+  "individuos": {
+      "titulo_seccion": "INDIVIDUOS",
+      "sin_nombre": "Sin nombre",
+      "detalles_ok": "Detalles Completos",
+      "editar_detalles": "Editar Detalles",
+      "vuelve_atras": "Vuelve atrás y agrega grupos primero.",
+      "asignar_esquema": "Asignar Esquema",
+      "titulo_singular": "Individuo",
+      "sin_esquema": "Sin Esquema"
+    },
+    "exportar": {
+      "cabecera_nombre": "Nombre",
+      "cabecera_sexo": "Sexo",
+      "cabecera_edad": "Edad",
+      "cabecera_peso": "Peso",
+      "cabecera_descripcion": "Descripción",
+      "cabecera_grupo": "Grupo",
+      "cabecera_esquema": "Esquema Asignado",
+      "cabecera_hora_inicio": "Hora Inicio",
+      "hoja_datos_generales": "Datos Generales",
+      "sufijo_archivo": "Resultados",
+      "dialogo_compartir": "Compartir Resultados (.xlsx)",
+      "error_compartir": "No se pudo compartir el archivo.",
+      "nombre_por_defecto": "muestra",
+      "sufijo_archivo1": "reporte_datos",
+      "exito_titulo": "Éxito",
+      "exito_mensaje": "Archivo \"{{fileName}}\" guardado con éxito.",
+      "cancelado_titulo": "Cancelado",
+      "cancelado_mensaje": "No se seleccionó un directorio.",
+      "error_titulo": "Error de guardado",
+      "error_mensaje": "No se pudo guardar el archivo. Se intentará compartir como alternativa.",
+      "opciones_titulo": "Exportar Resultados",
+      "opciones_mensaje": "¿Qué deseas hacer con el archivo?",
+      "opcion_compartir": "Compartir",
+      "opcion_guardar": "Guardar en Almacenamiento",
+      "error_generar": "No se pudo generar el archivo Excel."
+    }
+}

@@ -15,11 +15,11 @@ import { MaterialIcons } from "@expo/vector-icons";
 // 1. Usamos los mismos estilos que ModalGrupo
 import modalStyles from "../styles/modalStyles"; 
 import { RFValue } from "react-native-responsive-fontsize";
+import { useTranslation } from 'react-i18next';
 
-// 2. Mantenemos el nombre y los props del componente
+
 const ModalIndividuo = ({ visible, onClose, onSave, paciente }) => {
-  
-  // 3. Mantenemos la lógica y los estados del modal morado
+  const { t } = useTranslation();
   const [nombre, setNombre] = useState("");
   const [edad, setEdad] = useState("");
   const [sexo, setSexo] = useState("");
@@ -90,8 +90,7 @@ const ModalIndividuo = ({ visible, onClose, onSave, paciente }) => {
                 {/* Header (estilo ModalGrupo) */}
                 <View style={modalStyles.modalHeader}>
                   <Text style={modalStyles.modalTitle}>
-                    {/* Usamos un título basado en la lógica de ModalIndividuo */}
-                    {paciente?.nombre ? "Editar Individuo" : "Agregar Individuo"}
+                   {paciente?.nombre ? t('modales.individuo_editar') : t('modales.individuo_agregar')}
                   </Text>
                   <TouchableOpacity onPress={onClose}>
                     <MaterialIcons name="close" size={RFValue(24)} color="#333" />
@@ -109,58 +108,58 @@ const ModalIndividuo = ({ visible, onClose, onSave, paciente }) => {
                   {/* 5. Usamos los CAMPOS del modal morado, 
                          con los ESTILOS del modal blanco */}
                   
-                  <Text style={modalStyles.label}>Grupo:</Text>
+                  <Text style={modalStyles.label}>{t('modales.grupo_label')}</Text>
                   <TextInput
                     style={[modalStyles.input, { backgroundColor: '#E0E0E0', color: '#666' }]} // Deshabilitado
                     value={grupo}
                     editable={false}
                   />
 
-                  <Text style={modalStyles.label}>Identificador:</Text>
+                  <Text style={modalStyles.label}>{t('modales.identificador_label')}</Text>
                   <TextInput
                     ref={nameRef} // Asignamos la ref para el auto-focus
                     style={modalStyles.input}
                     value={nombre}
                     onChangeText={setNombre}
-                    placeholder="Ingrese identificador"
+                    placeholder={t('modales.identificador_placeholder')}
                     placeholderTextColor="#999"
                   />
             
-                  <Text style={modalStyles.label}>Edad:</Text>
+                  <Text style={modalStyles.label}>{t('modales.paciente_edad')}</Text>
                   <TextInput
                     style={modalStyles.input}
                     value={edad}
                     onChangeText={setEdad}
-                    placeholder="Ingrese edad"
+                    placeholder={t('modales.edad_placeholder')}
                     placeholderTextColor="#999"
                     keyboardType="numeric"
                   />
 
-                  <Text style={modalStyles.label}>Sexo:</Text>
+                  <Text style={modalStyles.label}>{t('modales.paciente_sexo')}</Text>
                   <TextInput
                     style={modalStyles.input}
                     value={sexo}
                     onChangeText={setSexo}
-                    placeholder="Ingrese sexo (M/F)"
+                    placeholder={t('modales.sexo_placeholder')}
                     placeholderTextColor="#999"
                   />
 
-                  <Text style={modalStyles.label}>Peso:</Text>
+                  <Text style={modalStyles.label}>{t('modales.paciente_peso')}</Text>
                   <TextInput
                     style={modalStyles.input}
                     value={peso}
                     onChangeText={setPeso}
-                    placeholder="Ingrese peso (kg)"
+                    placeholder={t('modales.peso_placeholder')}
                     placeholderTextColor="#999"
                     keyboardType="numeric"
                   />
 
-                  <Text style={modalStyles.label}>Descripción:</Text>
+                  <Text style={modalStyles.label}>{t('modales.paciente_descripcion')}</Text>
                   <TextInput
                     style={modalStyles.input}
                     value={descripcion}
                     onChangeText={setDescripcion}
-                    placeholder="Ingrese descripción"
+                    placeholder={t('modales.grupo_descripcion')}
                     placeholderTextColor="#999"
                     multiline
                   />
@@ -173,7 +172,7 @@ const ModalIndividuo = ({ visible, onClose, onSave, paciente }) => {
                       activeOpacity={0.7}
                     >
                       <Text style={modalStyles.primaryButtonText}>
-                        Guardar
+                       {t('common.guardar')}
                       </Text>
                     </TouchableOpacity>
                   </View>

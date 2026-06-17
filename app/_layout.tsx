@@ -1,4 +1,5 @@
 // app/_layout.tsx
+import '../i18n';
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -108,17 +109,17 @@ useEffect(() => {
 /////////////////////////
 // 3) Route Tracker   //
 /////////////////////////
-function RouteTracker() {
-  const segments = useSegments();
+// function RouteTracker() {
+//   const segments = useSegments();
 
-  useEffect(() => {
-    AsyncStorage.setItem('@lastRoute', '/' + segments.join('/')).catch(e =>
-      console.warn('No pude guardar la ruta:', e)
-    );
-  }, [segments]);
+//   useEffect(() => {
+//     AsyncStorage.setItem('@lastRoute', '/' + segments.join('/')).catch(e =>
+//       console.warn('No pude guardar la ruta:', e)
+//     );
+//   }, [segments]);
 
-  return null;
-}
+//   return null;
+// }
 
 /////////////////////////
 // 4) Styles          //

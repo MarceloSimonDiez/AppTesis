@@ -1,44 +1,44 @@
 import React, { useContext, useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  TouchableOpacity,
   FlatList,
   Modal,
   ScrollView,
   SafeAreaView, // <-- 1. IMPORTAR SafeAreaView
-  Alert 
+  Alert
 } from "react-native";
-import { useRouter, Stack } from "expo-router";
+import { useRouter } from "expo-router";
 import { GlobalContext } from "../GlobalProvider";
 import styles from "../styles/globalStyles"; // Usamos 100% los estilos globales
 import ModalPaciente from "../components/ModalIndividuo";
 import { MaterialIcons } from "@expo/vector-icons";
 import { responsiveFontSize as rf } from "react-native-responsive-dimensions"; // <-- Usamos 'rf'
 import grupoStyles from "../styles/grupoStyles";
-import {  RFValue } from "react-native-responsive-fontsize";
-const PacienteScreen = () => {
-  const router = useRouter();
-  
-  // --- 2. ASEGURAR VALORES POR DEFECTO ---
-  const { 
-    dataLoaded, 
-    grupos = [], 
-    pacientes = [], 
-    setPacientes, 
-    esquemas = [], 
-    sampleName 
-  } = useContext(GlobalContext);
+import { RFValue } from "react-native-responsive-fontsize";
+import { useTranslation } from 'react-i18next';
 
+
+const PacienteScreen = () => {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const {
+    dataLoaded,
+    grupos = [],
+    pacientes = [],
+    setPacientes,
+    esquemas = [],
+    sampleName
+  } = useContext(GlobalContext);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPaciente, setSelectedPaciente] = useState(null);
   const [isViewingMode, setIsViewingMode] = useState(false);
-  
   const [esquemaModalVisible, setEsquemaModalVisible] = useState(false);
   const [pacienteParaEsquema, setPacienteParaEsquema] = useState(null);
   const [selectedEsquemaId, setSelectedEsquemaId] = useState(null);
 
-useEffect(() => {
+  useEffect(() => {
     // Si la data no está cargada, no hacemos nada
     if (!dataLoaded) {
       return;
@@ -46,7 +46,7 @@ useEffect(() => {
     // --- LÓGICA DE BORRADO TOTAL ---
     if (grupos.length === 0) {
       setPacientes([]);
-      return; 
+      return;
     }
     // --- LÓGICA DE CREACIÓN/ACTUALIZACIÓN ---
     // 1. Genera la lista "maestra" de pacientes SIEMPRE desde los grupos
@@ -67,7 +67,7 @@ useEffect(() => {
 
     // 2. Actualizamos el estado global
     setPacientes((pacientesAnteriores) => {
-      
+
       // Creamos un "mapa" de los pacientes antiguos para buscar
       // sus datos guardados (nombre, sexo, esquema, etc.) de forma eficiente.
       const mapaPacientesAnteriores = new Map(
@@ -76,7 +76,7 @@ useEffect(() => {
 
       // 3. Creamos la nueva lista de pacientes
       const nuevaListaActualizada = pacientesGenerados.map(pacienteGenerado => {
-        
+
         // Buscamos si este paciente (por su ID) ya existía en la lista anterior
         const pacienteAntiguo = mapaPacientesAnteriores.get(pacienteGenerado.id);
 
@@ -95,12 +95,12 @@ useEffect(() => {
       return nuevaListaActualizada;
     });
 
-  // Añadimos setPacientes por buenas prácticas, aunque venga de un context
+    // Añadimos setPacientes por buenas prácticas, aunque venga de un context
   }, [dataLoaded, grupos, setPacientes]);
 
   // --- Lógica de Modales (Sin cambios funcionales) ---
   const handleAddDetalles = (pacienteId, detalles) => {
-    setPacientes(prev => 
+    setPacientes(prev =>
       prev.map(p => (p.id === pacienteId ? { ...p, ...detalles } : p))
     );
     setModalVisible(false);
@@ -119,35 +119,35 @@ useEffect(() => {
   };
 
   const handleAssignEsquema = () => {
-  // 1. Busca el esquema completo usando el ID
-  const esquemaCompleto = esquemas.find(e => e.id === selectedEsquemaId);
-  if (!esquemaCompleto) {
-    // (Si no se seleccionó nada o hay error, solo cierra)
-    setEsquemaModalVisible(false);
-    return;
-  }
-  // 2. Actualiza el paciente guardando ID y Nombre
-  setPacientes(prev => 
-    prev.map(p => 
-      p.id === pacienteParaEsquema.id 
-        ? { 
-            ...p, 
+    // 1. Busca el esquema completo usando el ID
+    const esquemaCompleto = esquemas.find(e => e.id === selectedEsquemaId);
+    if (!esquemaCompleto) {
+      // (Si no se seleccionó nada o hay error, solo cierra)
+      setEsquemaModalVisible(false);
+      return;
+    }
+    // 2. Actualiza el paciente guardando ID y Nombre
+    setPacientes(prev =>
+      prev.map(p =>
+        p.id === pacienteParaEsquema.id
+          ? {
+            ...p,
             esquemaId: esquemaCompleto.id,     // <-- Guardas el ID
             esquemaName: esquemaCompleto.nombre // <-- Guardas el Nombre
-          } 
-        : p
-    )
-  );
-  setEsquemaModalVisible(false);
-  setPacienteParaEsquema(null);
-  setSelectedEsquemaId(null);
-};
+          }
+          : p
+      )
+    );
+    setEsquemaModalVisible(false);
+    setPacienteParaEsquema(null);
+    setSelectedEsquemaId(null);
+  };
   const handleContinuar = () => {
-      router.push({ pathname: "extracciones" });
+    router.push({ pathname: "extracciones" });
   };
 
   // --- Renderizado de la tarjeta de Paciente (Sin cambios) ---
-const renderPaciente = ({ item }) => {
+  const renderPaciente = ({ item }) => {
     const color = item.grupoColor || '#CCC';
     const detallesCompletos = item.nombre && item.sexo && item.edad && item.peso;
 
@@ -155,34 +155,34 @@ const renderPaciente = ({ item }) => {
       <View style={styles.cardContainer}>
         <View style={[styles.colorBar, { backgroundColor: color }]} />
         <View style={styles.cardInfoWrapper}>
-          <Text style={styles.cardTitle}>{item.nombre || `Individuo ${item.id.split('-').pop()}`}</Text>
+          <Text style={styles.cardTitle}>{item.nombre || t('individuos.sin_nombre')}</Text>
           <Text style={styles.cardSubtitle}>{item.grupoName}</Text>
-          
-          <TouchableOpacity 
-            style={styles.cardInfoRow} 
+
+          <TouchableOpacity
+            style={styles.cardInfoRow}
             onPress={() => handleViewDetalles(item)}
           >
-            <MaterialIcons 
-              name={detallesCompletos ? "check-circle" : "edit"} 
-              size={rf(2.2)} 
-              color={detallesCompletos ? "#4CAF50" : "#663399"} 
+            <MaterialIcons
+              name={detallesCompletos ? "check-circle" : "edit"}
+              size={rf(2.2)}
+              color={detallesCompletos ? "#4CAF50" : "#663399"}
             />
             <Text style={[styles.cardInfoText, { color: detallesCompletos ? '#333' : '#663399' }]}>
-              {detallesCompletos ? "Detalles Completos" : "Editar Detalles"}
+              {detallesCompletos ? t('individuos.detalles_ok') : t('individuos.editar_detalles')}
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.cardInfoRow}
             onPress={() => handleOpenEsquemaModal(item)}
           >
-            <MaterialIcons 
-              name={item.esquemaId ? "label" : "label-outline"} 
-              size={rf(2.2)} 
-              color={item.esquemaId ? "#333" : "#663399"} 
+            <MaterialIcons
+              name={item.esquemaId ? "label" : "label-outline"}
+              size={rf(2.2)}
+              color={item.esquemaId ? "#333" : "#663399"}
             />
             <Text style={[styles.cardInfoText, { color: item.esquemaAsignado ? '#333' : '#663399' }]}>
-              {item.esquemaName || "Asignar Esquema"}
+              {item.esquemaName || t('individuos.asignar_esquema')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -190,34 +190,34 @@ const renderPaciente = ({ item }) => {
     );
   };
 
-return (
+  return (
     <SafeAreaView style={styles.safeArea}>
-      
-  <View style={grupoStyles.headerContainer}>
+
+      <View style={grupoStyles.headerContainer}>
 
 
         <TouchableOpacity onPress={() => router.push("esquema")} style={grupoStyles.backButton}>
           <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
         </TouchableOpacity>
-        <Text style={grupoStyles.headerTitle}>{sampleName || "Muestra Farmacológica"}</Text>
-      </View>  
-      
-  
+        <Text style={grupoStyles.headerTitle}>{sampleName || t('home.placeholder')}</Text>
+      </View>
+
+
       {/* --- 4. CONTENIDO DE LA PANTALLA --- */}
-      <View style={styles.container}> 
-        <Text style={styles.sectionTitle}>INDIVIDUOS</Text>
+      <View style={styles.container}>
+        <Text style={styles.sectionTitle}>{t('individuos.titulo_seccion')}</Text>
 
         {pacientes.length === 0 ? (
           <View style={styles.emptyStateContainer}>
-            <Text style={styles.emptyStateText}>No hay individuos.</Text>
-            <Text style={styles.emptyStateText}>Vuelve atrás y agrega grupos primero.</Text>
+            <Text style={styles.emptyStateText}>{t('grupos.emptyState.titulo')}</Text>
+            <Text style={styles.emptyStateText}>{t('individuos.vuelve_atras')}</Text>
           </View>
         ) : (
           <FlatList
             data={pacientes}
             keyExtractor={(item) => item.id}
             renderItem={renderPaciente}
-            style={{ width: '100%', flex: 1 }} 
+            style={{ width: '100%', flex: 1 }}
             contentContainerStyle={{ paddingBottom: 100 }} // <-- Espacio para el botón
           />
         )}
@@ -230,11 +230,11 @@ return (
           onPress={handleContinuar}
           activeOpacity={0.7}
         >
-          <Text style={styles.primaryButtonText}>CONTINUAR</Text>
-          <MaterialIcons 
-            name="arrow-forward-ios" 
+          <Text style={styles.primaryButtonText}>{t('common.continuar')}</Text>
+          <MaterialIcons
+            name="arrow-forward-ios"
             size={RFValue(18)} // 
-            color="#fff" 
+            color="#fff"
             style={{ marginLeft: 8 }}
           />
         </TouchableOpacity>
@@ -258,8 +258,8 @@ return (
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Asignar Esquema</Text>
-            <Text style={styles.modalPacienteName}>{pacienteParaEsquema?.nombre || `Individuo ${pacienteParaEsquema?.id.split('-').pop()}`}</Text>
+            <Text style={styles.modalTitle}>{t('individuos.asignar_esquema')}</Text>
+            <Text style={styles.modalPacienteName}>{pacienteParaEsquema?.nombre || t('individuos.sin_nombre')}</Text>
             <ScrollView style={styles.modalScrollView}>
               {esquemas.map((esquema) => (
                 <TouchableOpacity
@@ -271,19 +271,19 @@ return (
                   onPress={() => setSelectedEsquemaId(esquema.id)}
                 >
                   <Text style={[
-                        styles.esquemaOption,
-                        selectedEsquemaId === esquema.id && styles.esquemaOptionSelected // <-- Compara IDs
-                      ]}>
+                    styles.esquemaOption,
+                    selectedEsquemaId === esquema.id && styles.esquemaOptionSelected // <-- Compara IDs
+                  ]}>
                     {esquema.nombre}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.primaryButton, { width: '100%', marginTop: 15 }]}
               onPress={handleAssignEsquema}
             >
-              <Text style={styles.primaryButtonText}>GUARDAR</Text>
+              <Text style={styles.primaryButtonText}>{t('common.guardar')}</Text>
             </TouchableOpacity>
           </View>
         </View>

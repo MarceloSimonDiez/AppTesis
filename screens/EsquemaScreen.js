@@ -16,7 +16,7 @@ import esquemaStyles from '../styles/esquemaStyles';
 import grupoStyles from '../styles/grupoStyles';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RFValue } from 'react-native-responsive-fontsize';
-
+import { useTranslation } from 'react-i18next';
 // --- LÓGICA DEL EDITOR DE INTERVALOS (Fusionada) ---
 import TimePicker from "../components/TimePicker";
 import * as Calendar from "expo-calendar";
@@ -35,12 +35,12 @@ async function crearEventoLocalEnDias(dias, summary) {
   endDate.setDate(endDate.getDate() + 1);
 
   const eventId = await Calendar.createEventAsync(calendar.id, {
-    title:    summary,
+    title: summary,
     startDate,
     endDate,
-    allDay:   true,
+    allDay: true,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    notes:    'Creado desde AppTesis'
+    notes: 'Creado desde AppTesis'
   });
   return eventId;
 }
@@ -49,10 +49,11 @@ async function crearEventoLocalEnDias(dias, summary) {
 
 // --- COMPONENTE PRINCIPAL (Ahora maneja ambas vistas) ---
 const EsquemasScreen = () => {
+  const { t } = useTranslation();
   const router = useRouter();
-  const { 
-    esquemas, 
-    saveEsquemas, 
+  const {
+    esquemas,
+    saveEsquemas,
     hideAddButtons,
     sampleName, // (Necesario para el calendario)
     setTemporizadores // (Necesario para el calendario)
@@ -108,7 +109,7 @@ const EsquemasScreen = () => {
     saveEsquemas(nuevaListaEsquemas);
 
     setModalCrearVisible(false);
-    
+
     // --- CAMBIO CLAVE: En lugar de navegar, seleccionamos el esquema ---
     setEsquemaSeleccionado(nuevoEsquema);
     // ---
@@ -140,7 +141,7 @@ const EsquemasScreen = () => {
 
   const renderItemEsquema = ({ item }) => {
     const numIntervalos = item.intervalos ? item.intervalos.length : 0;
-    const subtitulo = `${numIntervalos} intervalo${numIntervalos === 1 ? '' : 's'}`;
+    const subtitulo = `${numIntervalos} ${numIntervalos === 1 ? t('esquemas.intervalo_singular') : t('esquemas.intervalo_plural')}`;
     const isDisabled = hideAddButtons;
 
     return (
@@ -228,7 +229,6 @@ const EsquemasScreen = () => {
       setTemporizadores(prev => ({ ...prev, [idEvento]: true }));
       const newId = Date.now().toString();
       setIntervalosLocales(prev => [...prev, { id: newId, tiempo: pendingTime }]);
-      Alert.alert('✅ Evento creado', `ID local: ${idEvento}`);
     } catch (e) {
       console.error('Error calendario nativo:', e);
       Alert.alert('❌ Error', e.message);
@@ -239,18 +239,18 @@ const EsquemasScreen = () => {
 
   const renderItemIntervalo = ({ item, index }) => {
     const timeString =
-    item.tiempo.days > 0
-      ? `${item.tiempo.days} día${item.tiempo.days > 1 ? 's' : ''}`
-      : `${String(item.tiempo.hours).padStart(2, '0')}:${String(
+      item.tiempo.days > 0
+        ? `${item.tiempo.days} ${item.tiempo.days === 1 ? t('common.dias').slice(0, -1) : t('common.dias')}`
+        : `${String(item.tiempo.hours).padStart(2, '0')}:${String(
           item.tiempo.minutes
         ).padStart(2, '0')}`;
     const isDisabled = hideAddButtons;
-    const titulo = `Toma ${index + 1}`;
-    const subtitulo = `Tiempo: ${timeString}`;
+    const titulo = `${t('esquemas.toma')} ${index + 1}`;
+    const subtitulo = `${t('esquemas.tiempo_label')}: ${timeString}`;
 
     return (
       <TouchableOpacity
-        style={[ esquemaStyles.cardContainer, isDisabled && esquemaStyles.cardDisabled ]}
+        style={[esquemaStyles.cardContainer, isDisabled && esquemaStyles.cardDisabled]}
         activeOpacity={0.8}
         onPress={() => !isDisabled && abrirModalIntervalo(item.id)}
         disabled={isDisabled}
@@ -276,22 +276,22 @@ const EsquemasScreen = () => {
   // Función para guardar el esquema editado y VOLVER A LA LISTA
   const handleGuardarEsquemaEditado = () => {
     if (!nombreEsquemaEdit.trim()) {
-      Alert.alert("Error", "El nombre del esquema no puede estar vacío.");
+      Alert.alert(t('common.error'), t('esquemas.error_nombre_vacio'));
       return;
     }
-    
+
     const esquemaActualizado = {
       ...esquemaSeleccionado,
       nombre: nombreEsquemaEdit,
       intervalos: intervalosLocales
     };
 
-    const nuevaListaGlobal = esquemas.map(e => 
+    const nuevaListaGlobal = esquemas.map(e =>
       e.id === esquemaActualizado.id ? esquemaActualizado : e
     );
-    
+
     saveEsquemas(nuevaListaGlobal);
-    
+
     // --- CAMBIO CLAVE: Volvemos a la vista de lista ---
     setEsquemaSeleccionado(null);
     // ---
@@ -305,27 +305,27 @@ const EsquemasScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.headerContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setEsquemaSeleccionado(null)} // Botón para volver a la lista
             style={styles.backButton}
           >
             <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Editar Esquema</Text>
+          <Text style={styles.headerTitle}>{t('esquemas.editar_titulo')}</Text>
         </View>
 
         <View style={styles.container}>
-          <Text style={styles.sectionTitle}>NOMBRE DEL ESQUEMA</Text>
+          <Text style={styles.sectionTitle}>{t('esquemas.nombre_label')}</Text>
           <TextInput
-            style={[styles.textInput, {borderColor: '#ccc', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10}]} // Estilo inline para text input
+            style={[styles.textInput, { borderColor: '#ccc', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10 }]} // Estilo inline para text input
             value={nombreEsquemaEdit}
             onChangeText={setNombreEsquemaEdit}
-            placeholder="Ej: Esquema Diurno"
+            placeholder={t('esquemas.nombre_ejemplo')}
             placeholderTextColor="#999"
             editable={!hideAddButtons}
           />
 
-          <Text style={[styles.sectionTitle, { marginTop: RFValue(20) }]}>INTERVALOS DE TIEMPO</Text>
+          <Text style={[styles.sectionTitle, { marginTop: RFValue(20) }]}>{t('esquemas.intervalos_label')}</Text>
           <FlatList
             data={intervalosLocales}
             keyExtractor={item => item.id}
@@ -334,8 +334,8 @@ const EsquemasScreen = () => {
             contentContainerStyle={{ paddingBottom: RFValue(150) }}
             ListEmptyComponent={(
               <View style={styles.emptyStateContainer}>
-                <Text style={styles.emptyStateText}>No hay intervalos creados</Text>
-                <Text style={styles.emptyStateText}>Presiona "AGREGAR" para comenzar</Text>
+                <Text style={styles.emptyStateText}>{t('esquemas.intervalos.vacio_titulo')}</Text>
+                <Text style={styles.emptyStateText}>{t('esquemas.intervalos.vacio_subtitulo')}</Text>
               </View>
             )}
           />
@@ -344,21 +344,21 @@ const EsquemasScreen = () => {
         {/* Botones del EDITOR */}
         <View style={grupoStyles.bottomButtonContainer}>
           <TouchableOpacity
-            style={[ grupoStyles.primaryButton, { flex: 1, marginRight: RFValue(5) }, hideAddButtons && { backgroundColor: '#A9A9A9', opacity: 0.6 } ]}
+            style={[grupoStyles.primaryButton, { flex: 1, marginRight: RFValue(5) }, hideAddButtons && { backgroundColor: '#A9A9A9', opacity: 0.6 }]}
             onPress={() => !hideAddButtons && abrirModalIntervalo(null)}
             disabled={hideAddButtons}
             activeOpacity={0.7}
           >
             <MaterialIcons name="add" size={RFValue(20)} color="#FFFFFF" style={{ marginRight: RFValue(8) }} />
-            <Text style={grupoStyles.primaryButtonText}>AGREGAR</Text>
+            <Text style={grupoStyles.primaryButtonText}>{t('common.agregar')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[grupoStyles.secondaryButton, { flex: 1, marginLeft: RFValue(5) }]}
+            style={grupoStyles.secondaryButton}
             onPress={handleGuardarEsquemaEditado} // Llama a la función de guardar y volver
             activeOpacity={0.7}
           >
-            <Text style={grupoStyles.secondaryButtonText}>GUARDAR</Text>
-            <MaterialIcons name="save" size={RFValue(18)} color="#FFFFFF" style={{ marginLeft: RFValue(8) }} />
+            <Text style={grupoStyles.secondaryButtonText}>{t('common.guardar')}</Text>
+            <MaterialIcons name="save" size={RFValue(18)} color="#ffffffff" style={{ marginLeft: RFValue(8) }} />
           </TouchableOpacity>
         </View>
 
@@ -366,16 +366,35 @@ const EsquemasScreen = () => {
         <Modal visible={modalIntervaloVisible} transparent animationType="fade">
           <View style={esquemaStyles.modalOverlay}>
             <View style={esquemaStyles.modalContainer}>
-              <Text style={esquemaStyles.modalTitle}>SELECCIONAR TIEMPO</Text>
+              <TouchableOpacity
+                style={{
+                  position: 'absolute', // Posición absoluta
+                  top: 15,              // Distancia desde arriba
+                  right: 15,            // Distancia desde la derecha
+                  zIndex: 1             // Asegura que esté encima de otros elementos
+                }}
+                onPress={() => setModalIntervaloVisible(false)} // Llama a la misma función que el 'onRequestClose'
+              >
+                <MaterialIcons name="close" size={26} color="#333" />
+              </TouchableOpacity>
+              <Text style={esquemaStyles.modalTitle}>{t('esquemas.seleccionar_tiempo')}</Text>
               <TimePicker onTimeChange={handleTimeChange} />
               <TouchableOpacity style={esquemaStyles.modalButton} onPress={onPressConfirmarIntervalo}>
-                <Text style={esquemaStyles.modalButtonText}>CONFIRMAR</Text>
+                <Text style={esquemaStyles.modalButtonText}>{t('common.confirmar_mayus')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
         <Modal visible={eventModalVisible} transparent animationType="fade">
-          {/* ... (Tu modal de evento de calendario) ... */}
+          <View style={esquemaStyles.modalOverlay}>
+            <View style={esquemaStyles.modalContainer}>
+              <Text style={esquemaStyles.modalTitle}>{t('esquemas.alerta_calendar')}</Text>
+              <Text style={[esquemaStyles.modalSubtitle, { marginVertical: 16 }]}>{eventDate}</Text>
+              <TouchableOpacity style={esquemaStyles.modalButton} onPress={onConfirmarFecha}>
+                <Text style={esquemaStyles.modalButtonText}>{t('common.confirmar_mayus')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     );
@@ -389,7 +408,7 @@ const EsquemasScreen = () => {
         <TouchableOpacity onPress={() => router.push("grupo")} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis Esquemas</Text>
+        <Text style={styles.headerTitle}>{t('esquemas.titulo_pantalla')}</Text>
       </View>
 
       <View style={styles.container}>
@@ -401,10 +420,8 @@ const EsquemasScreen = () => {
           contentContainerStyle={{ paddingBottom: RFValue(150) }}
           ListEmptyComponent={
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateText}>No hay esquemas creados</Text>
-              <Text style={styles.emptyStateText}>
-                Presiona "CREAR ESQUEMA" para comenzar
-              </Text>
+              <Text style={styles.emptyStateText}>{t('esquemas.emptyState.titulo')}</Text>
+              <Text style={styles.emptyStateText}>{t('esquemas.emptyState.subtitulo')}</Text>
             </View>
           }
         />
@@ -429,16 +446,16 @@ const EsquemasScreen = () => {
             color="#FFFFFF"
             style={{ marginRight: RFValue(8) }}
           />
-          <Text style={grupoStyles.primaryButtonText}>CREAR ESQUEMA</Text>
+          <Text style={grupoStyles.primaryButtonText}>{t('common.crear_esquema')}</Text>
         </TouchableOpacity>
 
         {/* Botón CONTINUAR (Derecha) */}
-          <TouchableOpacity
-            style={grupoStyles.secondaryButton} // <-- Nuevo estilo
-            onPress={() => router.push({ pathname: "paciente" })}
-            activeOpacity={0.7}
-          >
-          <Text style={grupoStyles.secondaryButtonText}>CONTINUAR</Text>
+        <TouchableOpacity
+          style={grupoStyles.secondaryButton} // <-- Nuevo estilo
+          onPress={() => router.push({ pathname: "paciente" })}
+          activeOpacity={0.7}
+        >
+          <Text style={grupoStyles.secondaryButtonText}>{t('common.continuar')}</Text>
           <MaterialIcons
             name="arrow-forward"
             size={RFValue(18)}
@@ -447,7 +464,7 @@ const EsquemasScreen = () => {
           />
         </TouchableOpacity>
       </View>
-      
+
 
       {/* Modal de la LISTA (para crear) */}
       <Modal
@@ -458,10 +475,22 @@ const EsquemasScreen = () => {
       >
         <View style={esquemaStyles.modalOverlay}>
           <View style={esquemaStyles.modalContainer}>
-            <Text style={esquemaStyles.modalTitle}>Crear Nuevo Esquema</Text>
+            {/* --- INICIO DEL CÓDIGO PARA LA "X" --- */}
+            <TouchableOpacity
+              style={{
+                position: 'absolute', // Posición absoluta
+                top: 15,              // Distancia desde arriba
+                right: 15,            // Distancia desde la derecha
+                zIndex: 1             // Asegura que esté encima de otros elementos
+              }}
+              onPress={() => setModalCrearVisible(false)} // Llama a la misma función que el 'onRequestClose'
+            >
+              <MaterialIcons name="close" size={26} color="#333" />
+            </TouchableOpacity>
+            <Text style={esquemaStyles.modalTitle}>{t('esquemas.titulo')}</Text>
             <TextInput
-              style={[styles.textInput, { width: '100%', marginVertical: 20, borderColor: '#ccc', borderWidth: 1, borderRadius: 8, padding: 12 }]} // Estilo inline
-              placeholder="Nombre del esquema (Ej: Diurno)"
+              style={[styles.textInput, { width: '100%', marginVertical: 20, borderColor: '#ccc', borderWidth: 1, borderRadius: 8, padding: 12 }]}
+              placeholder={t('esquemas.nombre_placeholder')}
               placeholderTextColor="#999"
               value={nombreEsquemaNuevo}
               onChangeText={setNombreEsquemaNuevo}
@@ -470,7 +499,7 @@ const EsquemasScreen = () => {
               style={esquemaStyles.modalButton}
               onPress={handleConfirmarCrear}
             >
-              <Text style={esquemaStyles.modalButtonText}>CONFIRMAR Y EDITAR</Text>
+              <Text style={esquemaStyles.modalButtonText}>{t('esquemas.confirmar')}</Text>
             </TouchableOpacity>
           </View>
         </View>

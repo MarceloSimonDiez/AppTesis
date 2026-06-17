@@ -1,13 +1,9 @@
 // GlobalProvider.js
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import i18n from './i18n';
 
 export const GlobalContext = createContext();
-
-const GROUP_COLORS = [
-  "#F44336", "#4CAF50", "#2196F3", "#FF9800", "#9C27B0",
-  "#009688", "#795548", "#E91E63", "#3F51B5", "#CDDC39",
-];
 
 export const GlobalProvider = ({ children }) => {
   const [grupos, setGrupos] = useState([]);
@@ -18,230 +14,136 @@ export const GlobalProvider = ({ children }) => {
   const [temporizadores, setTemporizadores] = useState({});
   const [hideAddButtons, setHideAddButtons] = useState(false);
   const [colorIndex, setColorIndex] = useState(0);
-
-
-const addGroup = (name, description, cantidadPacientes, color) => {
-    const newGroup = {
-      id: Date.now().toString(),
-      name,
-      description,
-      cantidadPacientes,
-      color,
-    };
-    setGrupos((prev) => [...prev, newGroup]);
-  };
-  
-const updateGroup = (id, name, description, cantidadPacientes) => {
-  // 1. Actualizar el grupo
-  let nuevoColor = null;
-  setGrupos((prevGrupos) =>
-    prevGrupos.map((g) => {
-      if (g.id === id) {
-        nuevoColor = g.color; // guardamos el color actual
-        return { ...g, name, description, cantidadPacientes };
-      }
-      return g;
-    })
-  );
-
-  // 2. Actualizar pacientes asociados al grupo
-  setPacientes((prevPacientes) =>
-    prevPacientes.map((p) =>
-      p.id.startsWith(`${id}-`)
-        ? { ...p, grupoName: name, color: nuevoColor }
-        : p
-    )
-  );
-};
-
-  
-  // Agregá esta función para poder borrar grupos desde el Screen:
-const deleteGroup = (id) => {
-    setGrupos((prev) => prev.filter((g) => g.id !== id));
-  };
+  const [idioma, setIdioma] = useState(null);
 
   const saveEsquemas = async (nuevosEsquemas) => {
-  try {
-    setEsquemas(nuevosEsquemas);
-    await AsyncStorage.setItem("esquemasData", JSON.stringify(nuevosEsquemas));
-  } catch (e) {
-    console.error("Error guardando esquemas", e);
-  }
-};
-
-
-useEffect(() => {
-  AsyncStorage.setItem('colorIndex', String(colorIndex));
-}, [colorIndex]);
-
-  // 1) Al montar, leo el valor guardado (si existe)
-useEffect(() => {
-  (async () => {
     try {
-      const json = await AsyncStorage.getItem('hideAddButtons');
-      if (json !== null) {
-        setHideAddButtons(JSON.parse(json));
-      }
+      setEsquemas(nuevosEsquemas);
+      await AsyncStorage.setItem("esquemasData", JSON.stringify(nuevosEsquemas));
     } catch (e) {
-      console.warn('No pude cargar hideAddButtons:', e);
-    }
-  })();
-}, []);
-
-useEffect(() => {
-  const loadColorIndex = async () => {
-    try {
-      const storedIndex = await AsyncStorage.getItem("colorIndex");
-      if (storedIndex !== null) {
-        setColorIndex(parseInt(storedIndex));
-      }
-    } catch (e) {
-      console.error("❌ Error al cargar colorIndex:", e);
+      console.error("Error guardando esquemas", e);
     }
   };
-  loadColorIndex();
-}, []);
 
-
-// 2) Cada vez que cambie, lo guardo
-useEffect(() => {
-  (async () => {
+  const cambiarIdioma = async (nuevoIdioma) => {
     try {
-      await AsyncStorage.setItem('hideAddButtons', JSON.stringify(hideAddButtons));
+      setIdioma(nuevoIdioma);
+      await i18n.changeLanguage(nuevoIdioma);
+      await AsyncStorage.setItem("idioma", nuevoIdioma);
     } catch (e) {
-      console.warn('No pude guardar hideAddButtons:', e);
+      console.error("Error al cambiar el idioma:", e);
     }
-  })();
-}, [hideAddButtons]);
+  };
 
-useEffect(() => {
-    if (sampleName !== null) {
-        AsyncStorage.setItem("sampleName", sampleName);
-      }      
-}, [sampleName]);
-
+  // --- EFECTOS DE CARGA (Al montar) ---
   useEffect(() => {
-      const loadSampleName = async () => {
-        try {
-            const storedName = await AsyncStorage.getItem("sampleName");
-                // si no hay nada, almacenamos string vacío para indicar que ya terminamos de leer
-            setSampleName(storedName ?? "");
-        } catch (e) {
-          console.error("❌ Error al cargar sampleName:", e);
-          setSampleName("");
-        }
-      };
-      loadSampleName();
-    }, []);
-
-
-  useEffect(() => {
-    const loadGrupos = async () => {
+    const loadInitialData = async () => {
       try {
-        const savedGrupos = await AsyncStorage.getItem("gruposData");
-        //log("📥 Grupos cargados al iniciar:", savedGrupos);
-        if (savedGrupos) {
-          setGrupos(JSON.parse(savedGrupos));
-        }
-      } catch (e) {
-        console.error("❌ Error al cargar grupos:", e);
-      }
-    };
-    loadGrupos();
-  }, []);
+        const [
+          savedGrupos,
+          savedPacientes,
+          savedEsquemas,
+          storedName,
+          storedHideButtons,
+          storedColorIndex,
+          storedIdioma
+        ] = await Promise.all([
+          AsyncStorage.getItem("gruposData"),
+          AsyncStorage.getItem("pacientesData"),
+          AsyncStorage.getItem("esquemasData"),
+          AsyncStorage.getItem("sampleName"),
+          AsyncStorage.getItem("hideAddButtons"),
+          AsyncStorage.getItem("colorIndex"),
+          AsyncStorage.getItem("idioma")
+        ]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const savedPacientes = await AsyncStorage.getItem('pacientesData');
-        //console.log("📥 Pacientes cargados al iniciar:", savedPacientes); // 👈
-  
-        if (savedPacientes) {
-          setPacientes(JSON.parse(savedPacientes));
+        if (savedGrupos) setGrupos(JSON.parse(savedGrupos));
+        if (savedPacientes) setPacientes(JSON.parse(savedPacientes));
+        if (savedEsquemas) setEsquemas(JSON.parse(savedEsquemas));
+        setSampleName(storedName ?? "");
+        if (storedHideButtons !== null) setHideAddButtons(JSON.parse(storedHideButtons));
+        if (storedColorIndex !== null) setColorIndex(parseInt(storedColorIndex));
+
+        if (storedIdioma) {
+          setIdioma(storedIdioma);
+          i18n.changeLanguage(storedIdioma);
+        } else {
+          // Si no hay idioma guardado, i18n ya usa el del dispositivo por defecto en su init
+          setIdioma(i18n.language);
         }
+
       } catch (e) {
-        console.error("❌ Error cargando pacientes:", e);
+        console.error("❌ Error al cargar datos iniciales:", e);
       } finally {
         setDataLoaded(true);
       }
     };
-    loadData();
+    loadInitialData();
   }, []);
 
-  // Cargar los intervalos al inicio
-useEffect(() => {
-  const loadIntervalos = async () => {
-    try {
-      const savedEsquemas = await AsyncStorage.getItem("esquemasData");
-      //console.log("📥 Intervalos cargados al iniciar:", savedIntervalos);
-      if (savedEsquemas) {
-        setEsquemas(JSON.parse(savedEsquemas));
-      }
-    } catch (e) {
-      console.error("❌ Error al cargar intervalos:", e);
+  // --- EFECTOS DE GUARDADO (Persistence) ---
+  useEffect(() => {
+    if (dataLoaded) {
+      AsyncStorage.setItem("gruposData", JSON.stringify(grupos)).catch(() => { });
     }
-  };
-  loadIntervalos();
-}, []);
+  }, [grupos, dataLoaded]);
 
   useEffect(() => {
     if (dataLoaded) {
-     // console.log("💾 Guardando pacientes:", JSON.stringify(pacientes, null, 2));
-      AsyncStorage.setItem("pacientesData", JSON.stringify(pacientes));
+      AsyncStorage.setItem("pacientesData", JSON.stringify(pacientes)).catch(() => { });
     }
-  }, [pacientes]);
-  
+  }, [pacientes, dataLoaded]);
 
   useEffect(() => {
-    AsyncStorage.setItem('gruposData', JSON.stringify(grupos));
-  }, [grupos]);
+    if (dataLoaded) {
+      AsyncStorage.setItem("esquemasData", JSON.stringify(esquemas)).catch(() => { });
+    }
+  }, [esquemas, dataLoaded]);
 
   useEffect(() => {
-    AsyncStorage.setItem('pacientesData', JSON.stringify(pacientes));
-  }, [pacientes]);
+    if (dataLoaded && sampleName !== null) {
+      AsyncStorage.setItem("sampleName", sampleName).catch(() => { });
+    }
+  }, [sampleName, dataLoaded]);
 
-// Cargar los esquemas al inicio
   useEffect(() => {
-    const loadEsquemas = async () => { // <-- Mejor
-      try {
-        const savedEsquemas = await AsyncStorage.getItem("esquemasData");
-        if (savedEsquemas) {
-          setEsquemas(JSON.parse(savedEsquemas));
-        }
-      } catch (e) {
-        console.error("❌ Error al cargar esquemas:", e); // <-- Mejor
-      }
-    };
-    loadEsquemas(); // <-- Mejor
-  }, []);
+    if (dataLoaded) {
+      AsyncStorage.setItem("hideAddButtons", JSON.stringify(hideAddButtons)).catch(() => { });
+    }
+  }, [hideAddButtons, dataLoaded]);
+
+  useEffect(() => {
+    if (dataLoaded) {
+      AsyncStorage.setItem("colorIndex", String(colorIndex)).catch(() => { });
+    }
+  }, [colorIndex, dataLoaded]);
 
   //console.log('🌐 GlobalProvider montado, temporizadores inicial:', temporizadores);
 
 
   return (
-  <GlobalContext.Provider
-    value={{
-      grupos,
-      addGroup, 
-      setGrupos,              
-      updateGroup,
-      deleteGroup,            
-      pacientes,
-      setPacientes,
-      esquemas,
-      setEsquemas,
-      saveEsquemas,
-      dataLoaded,
-      sampleName,     
-      setSampleName, 
-      temporizadores,       
-      setTemporizadores, 
-      hideAddButtons,
-      setHideAddButtons, 
-      colorIndex,
-      setColorIndex, 
-    }}
-  >
+    <GlobalContext.Provider
+      value={{
+        grupos,
+        setGrupos,
+        pacientes,
+        setPacientes,
+        esquemas,
+        setEsquemas,
+        saveEsquemas,
+        dataLoaded,
+        sampleName,
+        setSampleName,
+        temporizadores,
+        setTemporizadores,
+        hideAddButtons,
+        setHideAddButtons,
+        colorIndex,
+        setColorIndex,
+        idioma,
+        cambiarIdioma,
+      }}
+    >
       {children}
     </GlobalContext.Provider>
   );

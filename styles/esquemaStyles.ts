@@ -91,7 +91,7 @@ const esquemaStyles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: rf(2),
-    color: "#fff",
+    color: "#000000ff",
     textAlign: "center",
     fontWeight: "500",
   },

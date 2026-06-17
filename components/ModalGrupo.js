@@ -9,13 +9,15 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Modal, // <-- 1. IMPORTAMOS MODAL NATIVO
+  Modal, 
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import modalStyles from "../styles/modalStyles";
 import { RFValue } from "react-native-responsive-fontsize";
+import { useTranslation } from 'react-i18next';
 
 const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [cantidadPacientes, setCantidadPacientes] = useState("");
@@ -59,10 +61,10 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
   return (
     // 2. USAMOS EL COMPONENTE MODAL NATIVO
     <Modal
-      transparent={true} // Obligatorio para el overlay
-      visible={visible} // Controlado por el prop
-      animationType="fade" // Animación suave
-      onRequestClose={onClose} // Para el botón "atrás" de Android
+      transparent={true} 
+      visible={visible} 
+      animationType="fade" 
+      onRequestClose={onClose} 
     >
       {/* 3. El overlay oscuro ahora está dentro del Modal */}
       <TouchableWithoutFeedback onPress={() => {
@@ -83,7 +85,10 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                 {/* Header */}
                 <View style={modalStyles.modalHeader}>
                   <Text style={modalStyles.modalTitle}>
-                    {grupoEditando ? "Editar Grupo" : "Agregar Grupo"}
+                    {grupoEditando 
+                      ? t('grupos.modal.editar') 
+                      : t('grupos.modal.agregar')
+                    }
                   </Text>
                   <TouchableOpacity onPress={onClose}>
                     <MaterialIcons name="close" size={RFValue(24)} color="#333" />
@@ -97,27 +102,27 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                 >
-                  <Text style={modalStyles.label}>Nombre:</Text>
+                 <Text style={modalStyles.label}>{t('grupos.form.nombre')}</Text>
                   <TextInput
                     ref={nameRef}
                     style={modalStyles.input}
-                    placeholder="Ingrese el nombre"
+                    placeholder={t('modales.grupo_nombre')}
                     placeholderTextColor="#999"
                     value={name}
                     onChangeText={setName}
                   />
-                  <Text style={modalStyles.label}>Descripción:</Text>
+                 <Text style={modalStyles.label}>{t('grupos.form.descripcion')}</Text>
                   <TextInput
                     style={modalStyles.input}
-                    placeholder="Ingrese la descripción"
+                    placeholder={t('modales.grupo_descripcion')}
                     placeholderTextColor="#999"
                     value={description}
                     onChangeText={setDescription}
                   />
-                  <Text style={modalStyles.label}>Cantidad de Individuos:</Text>
+                  <Text style={modalStyles.label}>{t('grupos.form.cantidad_individuos')}</Text>
                   <TextInput
                     style={modalStyles.input}
-                    placeholder="Ingrese la cantidad"
+                    placeholder={t('modales.grupo_cantidad')}
                     placeholderTextColor="#999"
                     keyboardType="numeric"
                     value={cantidadPacientes}
@@ -132,7 +137,7 @@ const ModalGrupo = ({ visible, onClose, onAdd, grupoEditando }) => {
                       activeOpacity={0.7}
                     >
                       <Text style={modalStyles.primaryButtonText}>
-                        {grupoEditando ? "GUARDAR CAMBIOS" : "AGREGAR"}
+                        {grupoEditando ? t('common.guardar_cambios') : t('common.agregar')}
                       </Text>
                     </TouchableOpacity>
                   </View>

@@ -64,15 +64,16 @@ const extraccionesStyles = StyleSheet.create({
   },
   sideBar: {
     width: rw(4), // O rw(3)
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    borderTopLeftRadius: rh(2),
+    borderBottomLeftRadius: rh(2),
     // El color se aplica en el componente
   },
   contentContainer: {
     flex: 1,
-    padding: 16, // O rw(4)
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
+    paddingVertical: rh(2),   // (Ej: 2% de la altura)
+    paddingHorizontal: rw(4), // (Ej: 4% del ancho)
+    borderTopRightRadius: rh(2),
+    borderBottomRightRadius: rh(2),
   },
 
   muestraText: {

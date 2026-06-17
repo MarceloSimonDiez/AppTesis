@@ -9,8 +9,9 @@ import {
   InteractionManager
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-
 import styles from "../styles/extraccionesStyles"; // Asumo que tus estilos están aquí
+import { useTranslation } from 'react-i18next';
+
 
 // --- Función formatRetardo (Sin cambios) ---
 const formatRetardo = (zeroReachedAt) => {
@@ -29,9 +30,10 @@ export default function Paciente({
   handlePlay,
   iniciarSiguienteIntervalo,
   highlightedId,
-  setHighlightedId
+  setHighlightedId,
+  currentFilter
 }) {
-  // --- 1. Lógica de datos (Sin cambios) ---
+  const { t } = useTranslation();
   const currentIndex    = temp?.intervalIndex ?? 0;
   const totalIntervals = paciente.intervalos.length;
   const currentInterval = paciente.intervalos[currentIndex] || {
@@ -43,13 +45,13 @@ export default function Paciente({
   let timeSuffix;
   if (isDayInterval) {
     const d = currentInterval.tiempo.days;
-    timeSuffix = ` – ${d} día${d > 1 ? 's' : ''}`;
+    timeSuffix = ` – ${d} {t('common.dia')}${d > 1 ? 's' : ''}`;
   } else {
     const hh = String(currentInterval.tiempo.hours).padStart(2, '0');
     const mm = String(currentInterval.tiempo.minutes).padStart(2, '0');
     timeSuffix = ` – ${hh}:${mm}`;
   }
-  const muestraTexto = `muestra: ${displayedIndex}/${totalIntervals}${timeSuffix}`;
+  const muestraTexto =`${t('extracciones.muestra')}: ${displayedIndex}/${totalIntervals}${timeSuffix}`;
 
   const grupo  = grupos.find(g => g.name === paciente.grupoName);
   const bgColor = grupo?.color ?? "#EEE";
@@ -120,14 +122,17 @@ export default function Paciente({
           }
       ]}>
         
-        {/* Contenido (Sin cambios) */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: 'center' }}>
+        <View style={{ flexDirection: "row", alignItems: 'center' }}>
           <Text style={styles.muestraText}>{muestraTexto}</Text>
-         
-          <Text style={styles.muestraText}> 
-            {paciente.esquemaName || "Sin Esquema"}
-          </Text>
-
+          <View style={{ flex: 1, marginHorizontal: 8, alignItems: 'center' }}>
+            <Text 
+              style={styles.muestraText}
+              ellipsizeMode="tail" // <-- CLAVE: Añade "..." al final
+              numberOfLines={1}    // <-- CLAVE: Lo limita a 1 línea
+            > 
+              {paciente.esquemaName || t('individuos.sin_esquema')}
+            </Text>
+          </View>
           {(isDayInterval || temp?.allFinished) ? (
             <MaterialCommunityIcons name="check-circle-outline" size={32} color="#28a745" />
           ) : (!temp?.activo && !temp?.finished) && (
@@ -140,36 +145,38 @@ export default function Paciente({
         {/* Contenido (Sin cambios) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%", marginTop: 12 }}>
           <View style={styles.infoContainerE}>
-            <Text style={styles.labelE}>Individuo</Text>
+            <Text style={styles.labelE}>{t('individuos.titulo_singular')}</Text>
             <View style={[styles.inputBoxE, { backgroundColor: bgColor }]}>
-              <Text style={styles.inputTextE}>{paciente.nombre || "Sin nombre"}</Text>
+              <Text style={styles.inputTextE}>{paciente.nombre || t('individuos.sin_nombre')}</Text>
             </View>
           </View>
           <View style={styles.infoContainerE}>
-            <Text style={styles.labelE}>Grupo</Text>
+            <Text style={styles.labelE}>{t('modales.grupo_label')}</Text>
             <View style={[styles.inputBoxE, { backgroundColor: bgColor }]}>
               <Text style={styles.inputTextE}>{paciente.grupoName}</Text>
             </View>
           </View>
         </View>
-
-
-        {/* ¡CAMBIO! El Timer AHORA VA DENTRO de contentContainer */}
-        {temp?.activo && !temp?.finished && (
-          <View style={styles.timerContainer}>
-            <Text style={[styles.timerText, isUrgent && styles.textUrgent]}>
-              tiempo restante: {String(minutosRestantes).padStart(2,'0')}:
-              {String(segundosRestantes).padStart(2,'0')}
-            </Text>
-          </View>
-        )}
-
+          {temp && currentFilter !== 'SIN_INICIAR' && (
+              <View style={styles.timerContainer}>
+                <Text style={{
+                fontSize: 16,
+                color: '#000000ff',
+                marginTop: 8,      
+                textAlign: 'center',
+                fontWeight: 'bold'
+          }}>
+                  {t('extracciones.tiempo_restante')} {String(minutosRestantes).padStart(2, '0')}:
+                  {String(segundosRestantes).padStart(2, '0')}
+                </Text>
+              </View>
+            )}
         {/* ¡CAMBIO! Los botones de confirmación AHORA VAN DENTRO de contentContainer */}
         {temp?.finished && !temp?.allFinished && !isDayInterval && (
           <View style={styles.confirmContainerExtracciones}>
             <View style={styles.timerBadge}>
               <Text style={styles.timerText}>
-                tiempo de retardo: {formatRetardo(temp.zeroReachedAt)}
+               {t('extracciones.tiempo_retardo')} {formatRetardo(temp.zeroReachedAt)}
               </Text>
             </View>
             <View style={styles.buttonsRowExtracciones}>

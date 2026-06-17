@@ -1,33 +1,36 @@
-import React, { useContext, useEffect, useState, useReducer, useMemo } from "react"; // --- CAMBIO: Se añade 'useMemo'
-import * as MediaLibrary from 'expo-media-library';
-import { View, Text,  TouchableOpacity, FlatList, SafeAreaView, AppState,Platform,InteractionManager, Alert } from "react-native";
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { useRouter, Stack } from "expo-router";
+import React, { useContext, useEffect, useState, useReducer } from "react";
+import { View, Text, TouchableOpacity, FlatList, SafeAreaView, AppState, Platform, InteractionManager, Alert } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import styles from "../styles/globalStyles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GlobalContext } from "../GlobalProvider";
-import buttonStyles from '../styles/buttonStyles';
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Notifications from 'expo-notifications';
 import Paciente from "../components/Paciente";
-import { guardarCSVenDescargas } from '../services/fileUtils';
 import extraccionesStyles from "../styles/extraccionesStyles";
 import * as XLSX from 'xlsx';
 import { RFValue } from "react-native-responsive-fontsize";
 import grupoStyles from "../styles/grupoStyles";
+import { useTranslation } from 'react-i18next';
 
-// Devuelve 'SIN_INICIAR' | 'CURSO' | 'FINALIZADO' según el estado de un paciente
-function getStatus(paciente, timer, esquemas = []) { // Añadido 'esquemas'
+
+
+/* ==========================================================================
+   HELPER: ESTADO DERIVADO Y UTILIDADES MENORES
+   ========================================================================== */
+
+function getStatus(paciente, timer, esquemas = []) {
   if (!paciente.esquemaId) return 'SIN_INICIAR';
   const esquema = esquemas.find(e => e.id === paciente.esquemaId);
   if (!esquema || !esquema.intervalos || esquema.intervalos.length === 0) {
     return 'SIN_INICIAR';
   }
-  const idx   = timer?.intervalIndex ?? 0;
-  const active= timer?.activo === true;
-  const fin   = timer?.finished === true;
-  const done  = timer?.allFinished === true;
+  const idx = timer?.intervalIndex ?? 0;
+  const active = timer?.activo === true;
+  const fin = timer?.finished === true;
+  const done = timer?.allFinished === true;
   const curInt = esquema.intervalos?.[idx] || {};
   const isDay = curInt.tiempo?.days > 0;
 
@@ -38,125 +41,39 @@ function getStatus(paciente, timer, esquemas = []) { // Añadido 'esquemas'
   return 'SIN_INICIAR';
 }
 
+
+
+
 const ExtraccionesScreen = () => {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
-  const {grupos,pacientes,
+  const {
+    grupos, pacientes,
     esquemas,
     dataLoaded,
     setGrupos,
     setPacientes,
-    setIntervalos,
     sampleName,
     setEsquemas,
     setSampleName,
-    temporizadores,       
-    setTemporizadores  
+    temporizadores,
+    setTemporizadores,
+    setHideAddButtons // Desde GlobalContext para ocultar botones en el home al iniciar
   } = useContext(GlobalContext);
+
   const [patientsWithIntervals, setPatientsWithIntervals] = useState([]);
   const [filter, setFilter] = useState('SIN_INICIAR');
   const [isExporting, setIsExporting] = useState(false);
-  const [basePacientesList, setBasePacientesList] = useState([]);
-  // Utilizamos useReducer para forzar un re-render cada segundo.
-  // Cada vez que se llama a forceUpdate() se actualiza un estado interno que no usamos,
-  // lo que provoca que React vuelva a renderizar el componente.
-  const [, forceUpdate] = useReducer(x => x + 1, 0);
-  // Dentro de ExtraccionesScreen, tras temporizadores y patientsWithIntervals:
-  const allFinishedAll = Array.isArray(patientsWithIntervals) && patientsWithIntervals.length > 0 &&
-  patientsWithIntervals.every(p => {
-    const t = temporizadores[p.id] || {};
-    // 1) Confirmación manual (último ✔️)
-    if (t.allFinished) return true;
+  const [basePacientesList, setBasePacientesList] = useState([]); // Pacientes con intervalos pre-calculados (sin outcomes)
+  const [, forceUpdate] = useReducer(x => x + 1, 0); // Forzar re-renderizado
+  const [highlightedId, setHighlightedId] = useState(null); // Para resaltar paciente
 
-    // 2) Último intervalo es “días” **Y** ya venció ese timer
-    const intervals = p.intervalos || [];
-    const lastInt   = intervals[intervals.length - 1];
-    const isDay     = lastInt?.tiempo?.days > 0;
-    // Sólo lo tomamos como finalizado si el timer llegó a cero
-    if (isDay && t.finished === true) return true;
-
-    return false;
-  });
-  const [highlightedId, setHighlightedId] = useState(null);  
-  const { setHideAddButtons } = useContext(GlobalContext);
-
-
-  const handlePlay = (pacienteId, accion) => {
-    setHideAddButtons(true);               // ocultás botones globalmente
-    iniciarIntervalo(pacienteId, accion);  // tu lógica original
-  };
-
-  const confirmarFin = () => {
-    Alert.alert(
-      'Confirmar',
-      '¿Estás seguro de que querés finalizar y exportar los datos recopilados hasta este momento?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Aceptar', onPress: exportarMatrices }
-      ],
-      { cancelable: true }
-    );
-  };
-
+  // Preparamos basePacientesList a partir de pacientes y esquemas (solo una vez o cuando cambian)
   useEffect(() => {
-    // Iteramos el array que SÍ tiene .intervalos
-    patientsWithIntervals.forEach(p => {
-      const data = temporizadores[p.id] || {};
-      const idx  = data.intervalIndex ?? 0;
-      const cur  = p.intervalos[idx];
-      if (cur?.tiempo?.days > 0 && !data.allFinished) {
-        setTemporizadores(prev => ({
-          ...prev,
-          [p.id]: {
-            ...prev[p.id],
-            activo:       false,
-            finished:     true,
-            allFinished:  true,
-            intervalIndex: idx + 1,
-          }
-        }));
-      }
-    });
-  }, [patientsWithIntervals, temporizadores]);
-
-
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      forceUpdate();
-    }, 1000); // Cada 1000 milisegundos (1 segundo)
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    Notifications.requestPermissionsAsync();
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-      }),
-    });
-  }, []);
-  
-  useEffect(() => {
-    // Para Android: canal de alarma de máxima prioridad
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('alarm-channel', {
-        name: 'Alarm Channel',
-        importance: Notifications.AndroidImportance.MAX,           // prioridad máxima
-        sound: 'default',                                         // usar sonido por defecto
-        vibrationPattern: [0, 250, 250, 250],
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC
-      });
-    }
-  }, []);
-  
-// MODIFICA ESTE BLOQUE
-  useEffect(() => {
-      const task = InteractionManager.runAfterInteractions(() => {
-      // (Esta lógica interna está perfecta)
+    const task = InteractionManager.runAfterInteractions(() => {
       const pacientesConEsquema = pacientes.filter(p => p.esquemaId);
-      const nuevosPacientes = pacientesConEsquema.map((p) => { 
-        const esquemaDelPaciente = esquemas.find(e => e.id === p.esquemaId);    
+      const nuevosPacientes = pacientesConEsquema.map((p) => {
+        const esquemaDelPaciente = esquemas.find(e => e.id === p.esquemaId);
         const intervalosDelEsquema = esquemaDelPaciente ? esquemaDelPaciente.intervalos : [];
         const intervalosParaPaciente = intervalosDelEsquema.map((i) => ({
           ...i,
@@ -166,19 +83,16 @@ const ExtraccionesScreen = () => {
         }));
         return {
           ...p,
-          intervalos: intervalosParaPaciente, 
+          intervalos: intervalosParaPaciente,
         };
       });
-      // No seteamos el estado final, sino el estado base.
       setBasePacientesList(nuevosPacientes);
     });
 
     return () => task.cancel();
-    
-  }, [pacientes, esquemas]); // <--- (Las dependencias están bien)
+  }, [pacientes, esquemas]);
 
-  
-// MODIFICA ESTE BLOQUE
+  // Cargar temporizadores e intervalos guardados desde AsyncStorage
   useEffect(() => {
     const cargarTemporizadores = async () => {
       if (basePacientesList.length === 0) {
@@ -189,50 +103,64 @@ const ExtraccionesScreen = () => {
 
       const nuevosTimers = {};
       const nuevosPatientsWithIntervals = [];
-  
-      
+
       for (const paciente of basePacientesList) {
         try {
-
-        const [dataStr, intervalosTomadosStr, inicioStr] = await Promise.all([
+          // Carga paralela de datos de AsyncStorage
+          const [dataStr, intervalosTomadosStr, inicioStr] = await Promise.all([
             AsyncStorage.getItem(`temporizador-${paciente.id}`),
             AsyncStorage.getItem(`intervalosTomados-${paciente.id}`),
-            AsyncStorage.getItem(`inicio-${paciente.id}`) 
+            AsyncStorage.getItem(`inicio-${paciente.id}`) // Se usó inicio-id en handlePlay original
           ]);
 
           let temporizadorGuardado = null;
           let intervalosGuardados = null;
-  
+
           if (dataStr) temporizadorGuardado = JSON.parse(dataStr);
           if (intervalosTomadosStr) intervalosGuardados = JSON.parse(intervalosTomadosStr);
-  
-          
+
+          // Recalculo del timer para corrección en caso de cierre/apertura
           if (temporizadorGuardado) {
-            const { startTime, intervalIndex, duration, zeroReachedAt, finished, allFinished } = temporizadorGuardado;
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const remaining = Math.max(duration - elapsed, 0);
-            const calculadoZero = zeroReachedAt ?? (remaining === 0 ? startTime + duration * 1000 : null);
+            const data = temporizadorGuardado;
+            // Cálculo del tiempo restante y si llegó a cero
+            const elapsed = Math.floor((Date.now() - (data.startTime ?? Date.now())) / 1000);
+            const remaining = Math.max(data.duration - elapsed, 0);
+            const calculadoZero = data.zeroReachedAt ?? (remaining === 0 ? data.startTime + data.duration * 1000 : null);
+
+            // Corrección si el timer estaba activo pero llegó a cero mientras estaba en background
+            if (data.activo && !data.finished && remaining === 0) {
+              data.activo = false;
+              data.finished = true;
+              data.zeroReachedAt = calculadoZero || (data.startTime + data.duration * 1000);
+              // Guardamos la corrección
+              await AsyncStorage.mergeItem(
+                `temporizador-${paciente.id}`,
+                JSON.stringify({ finished: true, zeroReachedAt: data.zeroReachedAt })
+              );
+            }
+
             nuevosTimers[paciente.id] = {
-              activo: remaining > 0,
+              ...data,
               tiempo: remaining,
-              finished: finished !== undefined ? finished : (remaining === 0),
-              allFinished: allFinished !== undefined ? allFinished : false,
-              intervalIndex,
+              activo: data.activo,
+              finished: data.finished,
               zeroReachedAt: calculadoZero,
-              notificationId: null,
+              notificationId: data.notificationId ?? null,
             };
           }
 
+          // Merge de intervalos guardados con los intervalos base del esquema
           nuevosPatientsWithIntervals.push({
             ...paciente,
-            inicio: inicioStr || null,
-            intervalos: (paciente.intervalos || []).map((i, idx) => { 
+            // inicio-id (originalmente guardado en handlePlay)
+            inicio: inicioStr ? JSON.parse(inicioStr) : null,
+            intervalos: (paciente.intervalos || []).map((i, idx) => {
               const existente = intervalosGuardados?.[idx];
               return {
                 ...i,
-                tiempo: { ...i.tiempo },
+                tiempo: { ...i.tiempo }, // Clonar por precaución
                 outcome: existente?.outcome ?? null,
-                tiempoRespuesta: existente?.tiempoRespuesta ?? null,
+                horaRespuesta: existente?.horaRespuesta ?? null,
                 horaInicio: existente?.horaInicio ?? null,
               };
             }),
@@ -241,511 +169,640 @@ const ExtraccionesScreen = () => {
           console.warn("Error cargando datos persistidos:", e);
         }
       }
-  
-      // 4. SETEAMOS AMBOS ESTADOS JUNTOS
-      // Esto soluciona el "flicker"
+
       setTemporizadores(nuevosTimers);
       setPatientsWithIntervals(nuevosPatientsWithIntervals);
     };
-  
+
     cargarTemporizadores();
-  }, [basePacientesList]); 
-  
+  }, [basePacientesList]);
+
+
+  // Recalcular timers cuando la app vuelve al foreground (AppState)
   useEffect(() => {
+    if (!dataLoaded) return;
+
     const subscription = AppState.addEventListener("change", async (nextAppState) => {
       if (nextAppState === "active") {
         console.log("🔙 Volvimos al primer plano. Recalculando temporizadores...");
-        const nuevosTimers = {};
-  
-        for (const paciente of pacientes) {
-          try {
-            const dataStr = await AsyncStorage.getItem(`temporizador-${paciente.id}`);
-            if (dataStr) {
-              // Recuperamos además finished y allFinished
-              const { startTime, intervalIndex, duration, zeroReachedAt, finished, allFinished } = JSON.parse(dataStr);
-              const elapsed = Math.floor((Date.now() - startTime) / 1000);
-              const remaining = Math.max(duration - elapsed, 0);
-              const calculadoZero = zeroReachedAt ?? (remaining === 0 ? startTime + duration * 1000 : null);
-  
+        setTemporizadores((prevTemporizadores) => {
+          const nuevosTimers = { ...prevTemporizadores };
+
+          for (const paciente of patientsWithIntervals) {
+            try {
+              const data = nuevosTimers[paciente.id];
+              if (!data) continue;
+              if (data.allFinished || !data.startTime) continue; // Si ya finalizó o no ha iniciado, saltar
+
+              const elapsed = Math.floor((Date.now() - data.startTime) / 1000);
+              const remaining = Math.max(data.duration - elapsed, 0);
+              const calculadoZero = data.zeroReachedAt ?? (remaining === 0 ? data.startTime + data.duration * 1000 : null);
+
+              // Corrección si el timer estaba activo pero llegó a cero
+              if (data.activo && !data.finished && remaining === 0) {
+                data.activo = false;
+                data.finished = true;
+                data.zeroReachedAt = calculadoZero || (data.startTime + data.duration * 1000);
+
+                AsyncStorage.mergeItem(
+                  `temporizador-${paciente.id}`,
+                  JSON.stringify({ finished: true, zeroReachedAt: data.zeroReachedAt })
+                );
+              }
+
               nuevosTimers[paciente.id] = {
-                activo: remaining > 0,
+                ...data,
                 tiempo: remaining,
-                finished: finished !== undefined ? finished : (remaining === 0),
-                allFinished: allFinished !== undefined ? allFinished : false,
-                intervalIndex,
+                activo: data.activo,
+                finished: data.finished,
                 zeroReachedAt: calculadoZero,
               };
+            } catch (e) {
+              console.warn("⛔ Error al recalcular desde segundo plano:", e);
             }
-          } catch (e) {
-            console.warn("⛔ Error al recalcular desde segundo plano:", e);
           }
-        }
-  
-        setTemporizadores(nuevosTimers);
+
+          return nuevosTimers;
+        });
       }
     });
-  
+
     return () => subscription.remove();
-  }, [pacientes]);
-    
+  }, [dataLoaded, patientsWithIntervals]);
+
+
+  // Interval visual (forceUpdate) ha sido removido porque setTemporizadores ya dispara re-renders
+
+  // Interval logic: actualizar temporizadores cada segundo (UI state)
   useEffect(() => {
     const intervalId = setInterval(() => {
       setTemporizadores((prev) => {
         const nextState = { ...prev };
         Object.keys(nextState).forEach((id) => {
-          const data = nextState[id];
-          if (data.activo && !data.finished && !data.allFinished) {
-            if (data.tiempo > 0) {
-              data.tiempo -= 1;
-            } else if (!data.finished) {
-              data.tiempo = 0;
+          const data = { ...nextState[id] };
+          if (!data.startTime || data.allFinished) return;
+
+          // Se actualiza el tiempo restante localmente cada segundo
+          const elapsed = Math.floor((Date.now() - (data.startTime ?? Date.now())) / 1000);
+          const restante = Math.max((data.duration ?? data.tiempo) - elapsed, 0);
+          data.tiempo = restante;
+          data.animacionActiva = restante <= 60; // Animación del último minuto
+
+          // Lógica de finalización si llegó a cero
+          if (data.activo && !data.finished) {
+            if (restante === 0) {
               data.activo = false;
-              
-              
               data.finished = true;
-              if ('notificationId' in data && data.notificationId) {
-                Notifications.cancelScheduledNotificationAsync(data.notificationId);
+              data.zeroReachedAt = data.startTime + (data.duration * 1000);
+
+              // Cancelar la notificación de "último minuto" si ya terminó
+              if (data.notificationId) {
+                Notifications.cancelScheduledNotificationAsync(data.notificationId).catch(() => { });
               }
 
-  
-              if (!data.zeroReachedAt) {
-                data.zeroReachedAt = Date.now();
-              }
-              // Guardamos el estado completo en AsyncStorage
-              AsyncStorage.getItem(`temporizador-${id}`).then((savedStr) => {
-                if (savedStr) {
-                  const saved = JSON.parse(savedStr);
-                  saved.zeroReachedAt = data.zeroReachedAt;
-                  saved.finished = true;
-                  AsyncStorage.setItem(`temporizador-${id}`, JSON.stringify(saved));
-                }
-              });
+              // Guardar el estado de finalizado en AsyncStorage
+              AsyncStorage.mergeItem(
+                `temporizador-${id}`,
+                JSON.stringify({ finished: true, zeroReachedAt: data.zeroReachedAt })
+              );
             }
           }
+          nextState[id] = data;
         });
         return nextState;
       });
     }, 1000);
+
     return () => clearInterval(intervalId);
   }, []);
 
-  const algunTemporizadorIniciado = Object.values(temporizadores).some(
-    (t) => t.intervalIndex !== 0 || t.activo || t.finished
-  );
-  
-  const convertirAHorasMinutos = (hours, minutes) =>
-    parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60;
+  // Acciones: handlePlay (primer intervalo)
+  const handlePlay = async (pacienteId, accion) => {
+    // La lógica original solo iniciaba en accion === 0
+    if (accion === 0) {
+      const now = Date.now();
+      const nowStr = JSON.stringify(now);
+      setHideAddButtons(true); // Oculta botones en la pantalla anterior
 
-const iniciarIntervalo = async (idPaciente, intervalIndex) => {
-  const paciente = patientsWithIntervals.find(p => p.id === idPaciente);
-  if (!paciente) return;
+      try {
+        await AsyncStorage.setItem(`inicio-${pacienteId}`, nowStr);
+      } catch (e) {
+        console.warn("Error guardando inicio:", e);
+      }
+      await iniciarIntervalo(pacienteId, 0, { inicioTime: nowStr });
+    }
+  };
 
-  // 1) Guardar hora de PLAY
+  // iniciarIntervalo: Inicia un nuevo intervalo (0, 1, 2,...)
+  const iniciarIntervalo = async (idPaciente, intervalIndex, extra = {}) => {
+    const idKey = String(idPaciente);
+    const paciente = basePacientesList.find(p => String(p.id) === idKey) || patientsWithIntervals.find(p => String(p.id) === idKey);
+    if (!paciente) return;
+    const esquema = esquemas.find(e => e.id === paciente.esquemaId);
+    if (!esquema) return;
+    if (intervalIndex >= esquema.intervalos.length) return;
 
- // 1) Guardar hora de PLAY solo en el primer intervalo
- if (intervalIndex === 0) {
-   const now = new Date().toISOString();
-   setPatientsWithIntervals(prev =>
-     prev.map(p =>
-       p.id === idPaciente
-         ? { ...p, inicio: now }
-         : p
-     )
-   );
-   await AsyncStorage.setItem(`inicio-${idPaciente}`, now);
- }
+    const now = Date.now();
+    const intervalo = esquema.intervalos[intervalIndex];
 
-  // 2) Si ya no hay más intervalos, salimos
-  if (intervalIndex >= paciente.intervalos.length) {
-    return;
-  }
+    // Guardar inicio del paciente si es primer intervalo (Diferente del 'inicio-' guardado en handlePlay)
+    if (intervalIndex === 0) {
+      try {
+        await AsyncStorage.setItem(`paciente-inicio-${idKey}`, JSON.stringify(now));
+      } catch (e) {
+        console.warn("Error guardando hora de inicio:", e);
+      }
+    }
 
-  // 3) Lógica de temporizadores (igual que antes)
-  const { hours, minutes } = paciente.intervalos[intervalIndex].tiempo;
-  const totalSegundos = Number(hours) * 3600 + Number(minutes) * 60;
-  const startTime = Date.now();
-  const horaInicio = new Date().toLocaleTimeString();
+    const diasIntervalo = Number(intervalo.tiempo.days) || 0;
 
-  await AsyncStorage.setItem(
-    `temporizador-${idPaciente}`,
-    JSON.stringify({
-      startTime,
-      intervalIndex,
-      duration: totalSegundos,
-      horaInicio,
-      zeroReachedAt: null,
-    })
-  );
+    // 1. Lógica para intervalos por días (se marcan como finalizados inmediatamente)
+    if (diasIntervalo > 0) {
+      const newTimer = {
+        startTime: now,
+        intervalIndex,
+        duration: 0,
+        zeroReachedAt: now,
+        activo: false,
+        tiempo: 0,
+        finished: true,
+        allFinished: false,
+        notificationId: null,
+        animacionActiva: false,
+        pacienteNombre: paciente.nombre,
+      };
 
-  setTemporizadores(prev => ({
-    ...prev,
-    [idPaciente]: {
-      activo: true,
-      tiempo: totalSegundos,
-      finished: false,
-      allFinished: false,
-      intervalIndex,
-      horaInicio,
-      zeroReachedAt: null,
-      notificationId: null,
-    },
-  }));
+      setTemporizadores(prev => ({ ...prev, [idKey]: newTimer }));
+      await AsyncStorage.setItem(`temporizador-${idKey}`, JSON.stringify(newTimer));
+    }
+    // 2. Lógica para intervalos por horas/minutos
+    else {
+      const totalSegundos = (Number(intervalo.tiempo.hours) || 0) * 3600 + (Number(intervalo.tiempo.minutes) || 0) * 60;
 
-  if (totalSegundos > 59) {
-    const endTime = startTime + totalSegundos * 1000;
-    const triggerDate = new Date(endTime - 59_000);
+      let notifId = null;
 
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⏰ ¡Está por terminar el tiempo!',
-        body: `Al paciente ${paciente.nombre} le falta poco para terminar.`,
-        sound: 'default',
-        priority: Notifications.AndroidNotificationPriority.MAX,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate,
-        channelId: 'alarm-channel',
-        allowWhileIdle: true,
-      },
+      // Cancelar notif previa si existe (del intervalo anterior si lo hubiere)
+      const currentTimer = temporizadores[idKey];
+      if (currentTimer && currentTimer.notificationId) {
+        await cancelNotificationIfExists(currentTimer.notificationId);
+      }
+
+      // Programar notificación (Último minuto)
+      if (totalSegundos > 60) {
+        notifId = await scheduleMinuteNotification({
+          pacienteNombre: paciente.nombre,
+          idPaciente: idKey,
+          startTimestamp: now,
+          durationSeconds: totalSegundos
+        });
+      }
+
+      const newTimer = {
+        startTime: now,
+        intervalIndex,
+        duration: totalSegundos,
+        zeroReachedAt: null,
+        activo: true,
+        tiempo: totalSegundos,
+        finished: false,
+        allFinished: false,
+        notificationId: notifId,
+        animacionActiva: totalSegundos <= 60 ? true : false,
+        pacienteNombre: paciente.nombre,
+      };
+
+      setTemporizadores(prev => ({ ...prev, [idKey]: newTimer }));
+      await AsyncStorage.setItem(`temporizador-${idKey}`, JSON.stringify(newTimer));
+    }
+
+    // Actualizar patientsWithIntervals: registrar horaInicio del intervalo
+    setPatientsWithIntervals(prev => prev.map(p => {
+      if (String(p.id) !== idKey) return p;
+      const updatedPaciente = {
+        ...p,
+        intervalos: p.intervalos.map((intv, i) => i === intervalIndex ? { ...intv, horaInicio: Date.now() } : intv)
+      };
+      if (intervalIndex === 0) {
+        updatedPaciente.inicio = Date.now(); // Sobrescribe el 'inicio-'
+      }
+      return updatedPaciente;
+    }));
+  };
+
+  // iniciarSiguienteIntervalo: Guarda outcome, cancela notificaciones y avanza
+  const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
+    const timer = temporizadores[idPaciente];
+    const paciente = patientsWithIntervals.find(p => p.id === idPaciente);
+    if (!timer || !paciente) return;
+
+    const currentIndex = timer.intervalIndex;
+    const horaResp = Date.now();
+
+    // Evitar duplicados si ya tiene outcome
+    if (paciente.intervalos[currentIndex] && paciente.intervalos[currentIndex].outcome !== null) {
+      return;
+    }
+
+    // Guardar resultado en array local y AsyncStorage
+    const nuevosIntervalos = paciente.intervalos.map((intv, i) => {
+      if (i === currentIndex) {
+        return { ...intv, outcome, horaRespuesta: horaResp };
+      }
+      return intv;
     });
 
-    setTemporizadores(prev => ({
-      ...prev,
-      [idPaciente]: {
-        ...prev[idPaciente],
-        notificationId,
-      },
-    }));
-  }
+    try {
+      await AsyncStorage.setItem(`intervalosTomados-${idPaciente}`, JSON.stringify(nuevosIntervalos));
+    } catch (e) {
+      console.error("Fallo crítico al guardar intervalos:", e);
+      return;
+    }
 
-  // 4) Actualizar horaInicio en el propio intervalo (opcional)
-  setPatientsWithIntervals(prev =>
-    prev.map(p =>
-      p.id === idPaciente
-        ? {
-            ...p,
-            intervalos: p.intervalos.map((intv, i) =>
-              i === intervalIndex
-                ? { ...intv, horaInicio }
-                : intv
-            ),
-          }
-        : p
-    )
-  );
-};
-
- const registrarResultadoIntervalo = (idPaciente, outcome, tiempoRespuesta) => {
-   setPatientsWithIntervals(prev =>
-     prev.map(paciente => {
-       if (paciente.id !== idPaciente) return paciente;
-
-       // 1) Detecto índice y tipo de intervalo
-       const currentIndex = temporizadores[idPaciente]?.intervalIndex ?? 0;
-       const curInterval = paciente.intervalos[currentIndex];
-
-       // 2) Si es "por días", salto sin grabar nada
-       if (curInterval?.days > 0) return paciente;
-
-       // 3) Si no, construyo el array de intervalos actualizado
-       const nuevosIntervalos = paciente.intervalos.map((intervalo, idx) =>
-         idx === currentIndex
-           ? { ...intervalo, outcome, tiempoRespuesta }
-           : intervalo
-       );
-
-       // 4) Persisto en AsyncStorage
-       AsyncStorage.setItem(
-         `intervalosTomados-${idPaciente}`,
-         JSON.stringify(nuevosIntervalos)
-       );
-
-       // 5) Retorno el paciente con la lista de intervalos actualizada
-       return { ...paciente, intervalos: nuevosIntervalos };
-     })
-   );
- };
-const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
-  console.log('▶️ iniciarSiguienteIntervalo llamado para', idPaciente, '– estado actual:', temporizadores[idPaciente]);
-
-  // 1️⃣ Hora de respuesta
-  const horaResp = new Date().toLocaleTimeString();
-
-  // 2️⃣ Si llegó a cero, registramos en backend…
-  const zeroTime = temporizadores[idPaciente]?.zeroReachedAt;
-  if (zeroTime) {
-    await registrarResultadoIntervalo(idPaciente, outcome, horaResp);
-
-    // ——— 2a) Y guardamos outcome + tiempoRespuesta en patientsWithIntervals ———
     setPatientsWithIntervals(prev =>
-      prev.map(p =>
-        p.id === idPaciente
-          ? {
-              ...p,
-              intervalos: p.intervalos.map((intv, i) =>
-                i === temporizadores[idPaciente].intervalIndex
-                  ? { 
-                      ...intv,
-                      outcome,               // "1" o "0"
-                      tiempoRespuesta: horaResp
-                    }
-                  : intv
-              )
-            }
-          : p
-      )
+      prev.map(p => {
+        if (p.id === idPaciente) {
+          return { ...p, intervalos: nuevosIntervalos };
+        }
+        return p;
+      })
     );
-  }
 
-  // 3️⃣ Estado actual del temporizador
-  const data = temporizadores[idPaciente];
-  if (!data) return;
+    // Cancelar la notificación del intervalo actual si existe
+    if (timer.notificationId) {
+      await cancelNotificationIfExists(timer.notificationId);
+    }
 
-  // 4️⃣ Índice siguiente
-  const nextIndex = data.intervalIndex + 1;
-  const paciente  = patientsWithIntervals.find(p => p.id === idPaciente);
+    // Avanzar al siguiente intervalo o finalizar
+    const esquema = esquemas.find(e => e.id === paciente.esquemaId);
+    if (!esquema) return;
 
-  // 5️⃣ Si era el último intervalo, solo marcamos finished y allFinished
-  if (!paciente || nextIndex >= paciente.intervalos.length) {
-    console.log('🚨 Entré al último intervalo para', idPaciente);
-
-    // Aquí dejamos el setTemporizadores para la UI
-    setTemporizadores(prev => ({
-      ...prev,
-      [idPaciente]: {
-        ...prev[idPaciente],
-        activo:      false,
-        tiempo:      0,
-        finished:    true,
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= esquema.intervalos.length) {
+      // Estado de finalización total
+      const finalTimerState = {
+        ...timer,
+        activo: false,
+        tiempo: 0,
+        finished: true,
         allFinished: true,
         intervalIndex: nextIndex,
-      }
-    }));
-
-    // Persistir en AsyncStorage si usas esa lógica
-    const savedStr = await AsyncStorage.getItem(`temporizador-${idPaciente}`);
-    if (savedStr) {
-      const saved = JSON.parse(savedStr);
-      saved.finished    = true;
-      saved.allFinished = true;
-      await AsyncStorage.setItem(
-        `temporizador-${idPaciente}`,
-        JSON.stringify(saved)
-      );
+        notificationId: null,
+      };
+      setTemporizadores(prev => ({ ...prev, [idPaciente]: finalTimerState }));
+      await AsyncStorage.setItem(`temporizador-${idPaciente}`, JSON.stringify(finalTimerState));
+    } else {
+      // Iniciamos siguiente intervalo y programamos su notificación
+      await iniciarIntervalo(idPaciente, nextIndex);
     }
-    return;
-  }
+  };
 
-  // 6️⃣ Si NO era el último, arrancamos el siguiente intervalo
-  iniciarIntervalo(idPaciente, nextIndex);
-};
- 
 
-// Esta es la función completa y corregida
+  // Lógica de filtrado y orden
+  const sinIniciar = [];
+  const enCurso = [];
+  const finalizados = [];
+
+  patientsWithIntervals.forEach(p => {
+    const temp = temporizadores[p.id] || {};
+    const status = getStatus(p, temp, esquemas);
+    if (status === 'SIN_INICIAR') sinIniciar.push(p);
+    else if (status === 'CURSO') enCurso.push(p);
+    else if (status === 'FINALIZADO') finalizados.push(p);
+  });
+
+  let dataToShow = [];
+  if (filter === 'SIN_INICIAR') dataToShow = sinIniciar;
+  else if (filter === 'CURSO') {
+    // Separamos los pacientes con retardo (tiempo=0, finished=true, allFinished=false)
+    const retardo = enCurso.filter(p => {
+      const t = temporizadores[p.id] || {};
+      const isDayInterval = p.intervalos[t.intervalIndex]?.days > 0;
+      return t.finished && !t.allFinished && !isDayInterval;
+    });
+    const restante = enCurso.filter(p => !retardo.includes(p));
+
+    // Ordenar por más tiempo en retardo (descendente)
+    retardo.sort((a, b) => {
+      const waitedA = (Date.now() - (temporizadores[a.id].zeroReachedAt || 0)) / 1000;
+      const waitedB = (Date.now() - (temporizadores[b.id].zeroReachedAt || 0)) / 1000;
+      return waitedB - waitedA;
+    });
+
+    // Ordenar por menos tiempo restante (ascendente)
+    restante.sort((a, b) => {
+      const tA = temporizadores[a.id]?.tiempo ?? 0;
+      const tB = temporizadores[b.id]?.tiempo ?? 0;
+      return tA - tB;
+    });
+
+    dataToShow = [...retardo, ...restante];
+  } else if (filter === 'FINALIZADO') dataToShow = finalizados;
+
+  const showTerminar = finalizados.length === patientsWithIntervals.length;
+
+
+  /* ==========================================================================
+     3) NOTIFICACIONES (Permisos, Canal, Handler, Schedule/Cancel)
+     ========================================================================== */
+
+  // Pedir permisos, configurar canal Android y handler (solo al montar)
+  useEffect(() => {
+    (async () => {
+      try {
+        await Notifications.requestPermissionsAsync();
+      } catch (e) {
+        console.warn("Error pidiendo permisos:", e);
+      }
+
+      if (Platform.OS === 'android') {
+        try {
+          await Notifications.setNotificationChannelAsync('alarm-channel', {
+            name: t('extracciones.channelName'),
+            importance: Notifications.AndroidImportance.MAX,
+            sound: 'default',
+            vibrationPattern: [0, 800, 500, 800],
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+          });
+        } catch (e) {
+          console.warn("Error creando canal:", e);
+        }
+      }
+
+      // Handler para decidir cómo se muestra la notificación en foreground
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+    })();
+  }, []);
+
+  // Programación de notificación de "Último minuto" (60s antes de terminar)
+  const scheduleMinuteNotification = async ({ pacienteNombre, idPaciente, startTimestamp, durationSeconds }) => {
+    try {
+      if (!durationSeconds || durationSeconds <= 60) return null;
+
+      // Programar la notificación en: Tiempo de inicio + (Duración total - 60 segundos)
+      const triggerTs = startTimestamp + (durationSeconds - 60) * 1000;
+      const bodyMessage = pacienteNombre
+        ? t('extracciones.notif_body_con_nombre', { name: pacienteNombre })
+        : t('extracciones.notif_body_sin_nombre');
+
+      const nid = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: t('extracciones.notif_titulo'),
+          body: bodyMessage,
+          sound: 'default',
+          channelId: 'alarm-channel',
+          priority: Notifications.AndroidNotificationPriority.MAX,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(triggerTs),
+          allowWhileIdle: true, // Permite que se dispare aunque el dispositivo esté inactivo/dormido
+        },
+      });
+      return nid;
+    } catch (e) {
+      console.error("Error programando notificación persistente:", e);
+      return null;
+    }
+  };
+
+  // Cancelación de notificación
+  const cancelNotificationIfExists = async (notificationId) => {
+    if (!notificationId) return;
+    try {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+    } catch (e) {
+      console.warn("No se pudo cancelar notificación:", e);
+    }
+  };
+
+
+  /* ==========================================================================
+     4) EXPORTAR MATRICES (XLSX): Generación, Guardar/Compartir y Limpieza
+     ========================================================================== */
+
+  // Diálogo de confirmación para terminar/cerrar la muestra
+  const confirmarFin = () => {
+    Alert.alert(
+      t('extracciones.alerta_titulo'),
+      t('extracciones.alerta_mensaje'),
+      [
+        {
+          text: t('common.cancelar'),
+          style: "cancel"
+        },
+        {
+          text: t('extracciones.alerta_exportar'),
+          onPress: exportarMatrices,
+          style: "default"
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
   const exportarMatrices = async () => {
-    // --- Evita doble clic ---
     if (isExporting) return;
     setIsExporting(true);
 
     try {
-      // --- INICIO DE LA LÓGICA DE HOJAS ---
-      
       const wb = XLSX.utils.book_new();
 
-      // --- HOJA 1: DATOS GENERALES ---
-      // (Esta hoja lista a todos los pacientes y sus datos demográficos)
+      // --- HOJA 1: Datos generales ---
       const cabeceraDatos = [
-        // "ID Paciente",  // <-- Eliminado
-        "Nombre", 
-        "Sexo", 
-        "Edad", 
-        "Peso", 
-        "Descripción", 
-        "Grupo", 
-        "Esquema Asignado"
+        t('exportar.cabecera_nombre'),
+        t('exportar.cabecera_sexo'),
+        t('exportar.cabecera_edad'),
+        t('exportar.cabecera_peso'),
+        t('exportar.cabecera_descripcion'),
+        t('exportar.cabecera_grupo'),
+        t('exportar.cabecera_esquema')
       ];
       const filasDatos = patientsWithIntervals.map(p => [
-        // p.id, // <-- Eliminado
-        p.nombre, 
-        p.sexo, 
-        p.edad, 
-        p.peso, 
-        p.descripcion, 
-        p.grupoName, 
-        p.esquemaName || "N/A"
+        p.nombre, p.sexo, p.edad, p.peso, p.descripcion, p.grupoName, p.esquemaName || "N/A"
       ]);
       const ws_datos = XLSX.utils.aoa_to_sheet([cabeceraDatos, ...filasDatos]);
-      XLSX.utils.book_append_sheet(wb, ws_datos, "Datos Generales");
+      XLSX.utils.book_append_sheet(wb, ws_datos, t('exportar.hoja_datos_generales'));
 
-      // --- HOJAS 2, 3...: UNA POR ESQUEMA ---
-      
-      // 1. Encontrar los esquemas que sí están en uso
-      const esquemasEnUso = esquemas.filter(e => 
+
+      // --- HOJAS POR ESQUEMA (Matrices de resultados) ---
+      const esquemasEnUso = esquemas.filter(e =>
         patientsWithIntervals.some(p => p.esquemaId === e.id)
       );
 
-      // 2. Crear una hoja para cada esquema
       for (const esquema of esquemasEnUso) {
-        
-        // Cabecera dinámica para este esquema
-        const cabeceraEsquema = [
-          // "ID Paciente", // <-- Eliminado
-          "Nombre", 
-          "Hora Inicio"
-        ];
-        
-        // CORRECCIÓN: Usamos 'esquema.intervalos'
-        (esquema.intervalos || []).forEach((intervalo, idx) => {
-          cabeceraEsquema.push(`T${idx + 1} (${intervalo.nombre})`);
-          cabeceraEsquema.push(`T${idx + 1} Hora Tomada`);
-          cabeceraEsquema.push(`T${idx + 1} Resp (seg)`);
+        const cabeceraEsquema = [t('exportar.cabecera_nombre'), t('exportar.cabecera_hora_inicio')];
+
+        // Cabecera de intervalos (t1, t2,...)
+        (esquema.intervalos || []).forEach((i, idx) => {
+          if (i.tiempo.days > 0) {
+            cabeceraEsquema.push(`t${idx + 1} ${i.tiempo.days}d`);
+          } else {
+            const hh = String(i.tiempo.hours).padStart(2, "0");
+            const mm = String(i.tiempo.minutes).padStart(2, "0");
+            cabeceraEsquema.push(`t${idx + 1} ${hh}:${mm}`);
+          }
         });
 
         const filasEsquema = [];
         const pacientesDelEsquema = patientsWithIntervals.filter(p => p.esquemaId === esquema.id);
-        
-        for (const paciente of pacientesDelEsquema) {
-          const timer = temporizadores[paciente.id];
-          // CORRECCIÓN: Usamos 'timer.startTime' para la hora de inicio
-          const horaInicio = timer?.startTime 
-            ? new Date(timer.startTime).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            : "N/A";
-            
-          const filaPaciente = [
-            // paciente.id, // <-- Eliminado
-            paciente.nombre, 
-            horaInicio
-          ];
-          
-          (esquema.intervalos || []).forEach((intervalo, idx) => {
-            const pIntervalo = paciente.intervalos[idx]; // Datos guardados del paciente
-            
-            const outcome = pIntervalo?.outcome == null ? "" : (pIntervalo.outcome === "1" ? "SI" : "NO");
-            const horaTomada = pIntervalo?.horaInicio
-              ? new Date(pIntervalo.horaInicio).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-              : "";
-            const tiempoResp = pIntervalo?.tiempoRespuesta ?? "";
 
-            filaPaciente.push(outcome);
-            filaPaciente.push(horaTomada);
-            filaPaciente.push(tiempoResp);
+        for (const paciente of pacientesDelEsquema) {
+          // Formato de hora de inicio (paciente.inicio)
+          const horaInicio = paciente.inicio
+            ? new Date(Number(paciente.inicio)).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            : "N/A";
+
+          const filaPaciente = [paciente.nombre, horaInicio];
+
+          // Resultados de cada intervalo
+          (esquema.intervalos || []).forEach((intervalo, idx) => {
+            const pIntervalo = paciente.intervalos[idx];
+            const outcome = pIntervalo?.outcome;
+            const horaRespTimestamp = pIntervalo?.horaRespuesta;
+
+            if (outcome == null) {
+              filaPaciente.push(""); // Dato faltante
+            } else {
+              // 1. Traducir los símbolos "si" / "no"
+              const symbol = outcome === "1" ? t('extracciones.si') : t('extracciones.no');
+
+              let suffix = "";
+              if (horaRespTimestamp) {
+                // 2. Usar el idioma actual para el formato de hora
+                // i18n.language suele devolver 'en' o 'es'
+                const currentLang = i18n.language === 'es' ? 'es-ES' : 'en-US';
+
+                const hora = new Date(Number(horaRespTimestamp)).toLocaleString(currentLang, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: i18n.language !== 'es' // AM/PM para inglés, 24h para español
+                });
+                suffix = ` (${hora})`;
+              }
+              filaPaciente.push(symbol + suffix);
+            }
           });
           filasEsquema.push(filaPaciente);
         }
-        
+
         const ws_esquema = XLSX.utils.aoa_to_sheet([cabeceraEsquema, ...filasEsquema]);
-        const nombreHoja = esquema.nombre.substring(0, 30);
-        XLSX.utils.book_append_sheet(wb, ws_esquema, nombreHoja);
+        const nombreHoja = esquema.nombre.replace(/[\\\/\?\*\[\]\:]/g, "").substring(0, 31);
+        XLSX.utils.book_append_sheet(wb, ws_esquema, nombreHoja || `Esquema ${esquemasEnUso.indexOf(esquema) + 1}`);
       }
-      
-      // --- FIN DE LA LÓGICA DE HOJAS ---
 
-
-      // 6. Generar el archivo Excel en formato Base64
+      // --- GENERAR archivo Base64 y Metadata ---
       const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-
-      // 7. Definir nombre y tipo
-      const baseName = sampleName.replace(/\s+/g, "");
-      const nombreArchivo = `${baseName}_Resultados.xlsx`;
+      const defaultName = t('exportar.nombre_por_defecto');
+      const baseName = (sampleName || defaultName).replace(/\s+/g, "");
+      const nombreArchivo = `${baseName}_${t('exportar.sufijo_archivo1')}.xlsx`;
       const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-      // --- INICIO DE LA LÓGICA DE PREGUNTAR (Y LIMPIEZA CORREGIDA) ---
-
+      // --- Limpieza y Navegación ---
       const limpiarDatosYNavegar = async () => {
-        // 1. Cancelar todas las notificaciones pendientes
-        await Notifications.cancelAllScheduledNotificationsAsync();
+        try {
+          // Cancelar todas las notificaciones pendientes
+          await Notifications.cancelAllScheduledNotificationsAsync();
 
-        // 2. Buscar TODAS las claves dinámicas (timers, intervalos)
-        const allKeys = await AsyncStorage.getAllKeys();
-        const dynamicKeysToRemove = allKeys.filter(key => 
-          key.startsWith('temporizador-') || 
-          key.startsWith('intervalosTomados-')
-        );
+          const allKeys = await AsyncStorage.getAllKeys();
+          // Keys dinámicas de temporizadores y resultados
+          const dynamicKeysToRemove = allKeys.filter(key =>
+            key.startsWith('temporizador-') ||
+            key.startsWith('intervalosTomados-') ||
+            key.startsWith('inicio-') || // 'inicio-' (original)
+            key.startsWith('paciente-inicio-') // 'paciente-inicio-' (iniciarIntervalo)
+          );
 
-        // 3. Definir claves estáticas (los nombres de tus datos en context/storage)
-        const staticKeysToRemove = [
-          'grupos',       // O 'gruposData', como lo tengas guardado
-          'pacientes',    // O 'pacientesData'
-          'esquemas',     // O 'esquemasData' / 'intervalosData'
-          'sampleName'
-        ];
-        
-        // 4. Borrar TODO (dinámico y estático) de AsyncStorage
-        await AsyncStorage.multiRemove([
-            ...dynamicKeysToRemove,
-            ...staticKeysToRemove
-        ]);
-  
-        // 5. Resetear el estado global (Context)
-        setGrupos([]);
-        setPacientes([]);
-        setEsquemas([]); 
-        setSampleName("");
-        setHideAddButtons(false); // <-- Importante: Muestra botones en inicio
-        
-        // 6. Navegar al inicio
-        router.replace("/");
+          // Keys estáticas de configuración global
+          const staticKeysToRemove = [
+            'grupos', 'pacientes', 'esquemas', 'sampleName'
+          ];
+
+          await AsyncStorage.multiRemove([...dynamicKeysToRemove, ...staticKeysToRemove]);
+
+          // Limpiar estado local y global
+          setGrupos([]);
+          setPacientes([]);
+          setEsquemas([]);
+          setSampleName("");
+          setHideAddButtons(false);
+
+          // Navegar a la pantalla de inicio después de que las interacciones pendientes terminen
+          InteractionManager.runAfterInteractions(() => {
+            router.replace("/");
+          });
+        } catch (e) {
+          console.error("Error limpiando datos:", e);
+        }
       };
 
-      // (El resto de las funciones 'compartirArchivo' y 'guardarEnAlmacenamiento' 
-      //  se quedan como las tenías)
-
+      // --- Compartir Archivo ---
       const compartirArchivo = async () => {
         try {
           const uri_cache = FileSystem.cacheDirectory + nombreArchivo;
+          // Escribir el Base64 en un archivo temporal en caché
           await FileSystem.writeAsStringAsync(uri_cache, wbout, {
             encoding: FileSystem.EncodingType.Base64
           });
-          await Sharing.shareAsync(uri_cache, { mimeType, dialogTitle: 'Compartir Resultados (.xlsx)' });
-          return true; // Éxito
+          // Abrir diálogo de compartir nativo
+          await Sharing.shareAsync(uri_cache, { mimeType, dialogTitle: t('exportar.dialogo_compartir') });
+          return true; // Éxito en compartir
         } catch (shareError) {
-          console.error("Error al compartir:", shareError);
-          Alert.alert("Error", "No se pudo compartir el archivo.");
-          return false; // Fallo
+          Alert.alert(t('common.error'), t('exportar.error_compartir'));
+          return false;
         }
       };
 
+      // --- Guardar en Almacenamiento (Android SAF) ---
       const guardarEnAlmacenamiento = async () => {
-        if (Platform.OS !== 'android') return await compartirArchivo();
+        if (Platform.OS !== 'android') return await compartirArchivo(); // Fallback si no es Android
         try {
+          // Pedir permiso para acceder a un directorio (Storage Access Framework)
           const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
           if (permissions.granted) {
             const directoryUri = permissions.directoryUri;
+            // Crear el archivo
             const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, nombreArchivo, mimeType);
+            // Escribir el contenido
             await FileSystem.writeAsStringAsync(fileUri, wbout, {
               encoding: FileSystem.EncodingType.Base64
             });
-            Alert.alert("Éxito", `Archivo "${nombreArchivo}" guardado con éxito.`);
-            return true;
+            Alert.alert(t('exportar.exito_titulo'), t('exportar.exito_mensaje', { nombre: nombreArchivo }));
+            return true; // Éxito en guardar
           } else {
-            Alert.alert("Cancelado", "No se seleccionó un directorio.");
+            Alert.alert(t('exportar.cancelado_titulo'), t('exportar.cancelado_mensaje'));
             return false;
           }
         } catch (safError) {
-          console.error("Error con StorageAccessFramework:", safError);
-          Alert.alert("Error de guardado", "No se pudo guardar el archivo. Se intentará compartir como alternativa.");
-          return await compartirArchivo();
+          console.warn("Error SAF, intentando compartir:", safError);
+          Alert.alert(t('exportar.error_guardado_titulo'), t('exportar.error_guardado_mensaje'));
+          return await compartirArchivo(); // Fallback a compartir
         }
       };
 
-      // --- Flujo principal (Preguntar al usuario - Sin cambios) ---
+      // --- Flujo de Diálogo de Exportación (Android) ---
       if (Platform.OS === 'android') {
         Alert.alert(
-          "Exportar Resultados",
-          "¿Qué deseas hacer con el archivo?",
+          t('exportar.opciones_titulo'),
+          t('exportar.opciones_mensaje'),
           [
-            { text: "Cancelar", style: "cancel", onPress: () => setIsExporting(false) },
+            { text: t('common.cancelar'), style: "cancel", onPress: () => setIsExporting(false) },
             {
-              text: "Compartir",
+              text: t('exportar.opcion_compartir'),
               onPress: async () => {
                 const completado = await compartirArchivo();
                 if (completado) await limpiarDatosYNavegar();
-                setIsExporting(false); 
+                setIsExporting(false);
               }
             },
             {
-              text: "Guardar en Almacenamiento",
+              text: t('exportar.opcion_guardar'),
               onPress: async () => {
                 const completado = await guardarEnAlmacenamiento();
                 if (completado) await limpiarDatosYNavegar();
@@ -755,86 +812,37 @@ const iniciarSiguienteIntervalo = async (idPaciente, outcome) => {
           ],
           { cancelable: false }
         );
-      } else {
-        // iOS
+      }
+      // --- Flujo de Exportación (iOS/Web) ---
+      else {
         const completado = await compartirArchivo();
         if (completado) await limpiarDatosYNavegar();
         setIsExporting(false);
       }
-
     } catch (e) {
-      console.error("Error al exportar (fase de creación):", e);
-      Alert.alert("Error", "No se pudo generar el archivo Excel.");
+      console.error("Error al exportar:", e);
+      Alert.alert(t('common.error'), t('exportar.error_generar'));
       setIsExporting(false);
     }
   };
 
-const sinIniciar   = [];
-const enCurso      = [];
-const finalizados  = [];
 
-patientsWithIntervals.forEach(p => {
-  const temp = temporizadores[p.id] || {};
-  const status = getStatus(p, temp, esquemas);
-  if      (status === 'SIN_INICIAR')  sinIniciar.push(p);
-  else if (status === 'CURSO')        enCurso.push(p);
-  else if (status === 'FINALIZADO')   finalizados.push(p);
-});
+  /* ==========================================================================
+     5) RENDER
+     ========================================================================== */
 
-// 2) Preparamos los datos a mostrar según el filter
-let dataToShow = [];
-
-if (filter === 'SIN_INICIAR') {
-  dataToShow = sinIniciar;
-}
-else if (filter === 'CURSO') {
-  // a) separamos quienes ya cumplieron el tiempo y esperan confirmación (retardo)
-  const retardo = enCurso.filter(p => {
-    const t = temporizadores[p.id] || {};
-    const isDayInterval = p.intervalos[t.intervalIndex]?.days > 0;
-    return t.finished && !t.allFinished && !isDayInterval;
-  });
-  // b) el resto sigue con tiempo corriendo (restante)
-  const restante = enCurso.filter(p => !retardo.includes(p));
-
-  // c) ordenamos cada subgrupo
-  // — Retardo: de mayor a menor espera
-  retardo.sort((a, b) => {
-    const waitedA = (Date.now() - temporizadores[a.id].zeroReachedAt) / 1000;
-    const waitedB = (Date.now() - temporizadores[b.id].zeroReachedAt) / 1000;
-    return waitedB - waitedA;
-  });
-  // — Restante: de menor a mayor segundos restantes
-  restante.sort((a, b) => {
-    const tA = temporizadores[a.id].tiempo;
-    const tB = temporizadores[b.id].tiempo;
-    return tA - tB;
-  });
-
-  // d) concatenamos para el orden final
-  dataToShow = [...retardo, ...restante];
-}
-else if (filter === 'FINALIZADO') {
-  dataToShow = finalizados;
-}
-
-// 3) Botón Terminar solo si TODOS están en finalizados
-const showTerminar = finalizados.length === patientsWithIntervals.length;
-
-return (
-
+  return (
     <SafeAreaView style={styles.safeArea}>
       <View style={grupoStyles.headerContainer}>
         <TouchableOpacity onPress={() => router.back()} style={grupoStyles.backButton}>
           <MaterialIcons name="arrow-back" size={RFValue(24)} color="#333" />
-        </TouchableOpacity>  
-        <Text style={grupoStyles.headerTitle}>{sampleName || "Muestra Farmacológica"}</Text>  
-        <TouchableOpacity 
-          onPress={confirmarFin} 
-          // 3. --- CAMBIO: Añadimos estilo para posicionar la 'X' ---
+        </TouchableOpacity>
+        <Text style={grupoStyles.headerTitle}>{sampleName || t('extracciones.muestra_por_defecto')}</Text>
+        <TouchableOpacity
+          onPress={() => { confirmarFin(); }}
           style={{
             position: 'absolute',
-            right: RFValue(15), // Ajusta 'right' (15 es un valor común)
+            right: RFValue(15),
             top: 0,
             bottom: 0,
             justifyContent: 'center',
@@ -842,19 +850,15 @@ return (
           }}
         >
           <MaterialIcons name="close" size={RFValue(26)} color="#E53935" />
-        </TouchableOpacity>  
-      </View>  
-     
-     <View style={[styles.container, { alignItems: 'stretch' }]}>
+        </TouchableOpacity>
+      </View>
 
-        {/* 6. ELIMINADO: El <View style={extraccionesStyles.topBarCard}> (cabezal morado) se borra */}
-        
-        {/* 7. MOVIDO: Los filtros ahora van aquí, sobre fondo gris */}
+      <View style={[styles.container, { alignItems: 'stretch' }]}>
         <View style={extraccionesStyles.filterRow}>
           {[
-            ['SIN_INICIAR', 'SIN INICIAR'],
-            ['CURSO', 'EN CURSO'],
-            ['FINALIZADO', 'FINALIZADOS'],
+            ['SIN_INICIAR', t('extracciones.filtro_sin_iniciar')],
+            ['CURSO', t('extracciones.filtro_curso')],
+            ['FINALIZADO', t('extracciones.filtro_finalizado')],
           ].map(([key, label]) => (
             <TouchableOpacity
               key={key}
@@ -872,46 +876,44 @@ return (
               >
                 {label}
               </Text>
-              {filter === key && <View style={extraccionesStyles.filterUnderline}/>}
+              {filter === key && <View style={extraccionesStyles.filterUnderline} />}
             </TouchableOpacity>
           ))}
         </View>
-   
-        {/* 8. CAMBIO: FlatList ajustado para el nuevo layout */}
-<FlatList
+
+        <FlatList
           data={dataToShow}
-          keyExtractor={item => item.id}
+          keyExtractor={item => String(item.id)}
+          extraData={{ highlightedId, grupos, temporizadores }}
           renderItem={({ item }) => (
-            // ¡AHORA SÍ! Renderizamos solo el componente Paciente,
-            // que ya tiene sus propios estilos de tarjeta.
             <Paciente
               paciente={item}
-              temp={temporizadores[item.id]}
+              temp={temporizadores[item.id] || {}}
               grupos={grupos}
               handlePlay={handlePlay}
               iniciarSiguienteIntervalo={iniciarSiguienteIntervalo}
               highlightedId={highlightedId}
               setHighlightedId={setHighlightedId}
+              currentFilter={filter}
             />
           )}
         />
-
       </View>
 
-      {/* 10. CAMBIO: Contenedor de botón inferior (de globalStyles) */}
       <View style={styles.bottomButtonContainer}>
-        {showTerminar  && (
-        <TouchableOpacity 
-          // 11. CAMBIO: Usando estilo global
-          style={styles.primaryButton} 
-          onPress={exportarMatrices}
-        >
-          {/* 12. CAMBIO: Usando texto de botón global */}
-          <Text style={styles.primaryButtonText}>Exportar Datos</Text>
-        </TouchableOpacity>)}
+        {showTerminar && (
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={exportarMatrices}
+            disabled={isExporting}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isExporting ? t('Exportar Datos') : t('Export Data')}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
-    
   );
 };
 

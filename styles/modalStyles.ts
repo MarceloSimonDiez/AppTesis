@@ -17,16 +17,14 @@ const modalStyles = StyleSheet.create({
   kavWrapper: {
     width: '100%',
     alignItems: 'center',
-    // --- AÑADIDO ---
-    // Hacemos que el wrapper también sea flexible y se centre
     flex: 1,
     justifyContent: 'center', 
   },
   modalContainer: {
     // --- AÑADIDO ---
     flex: 1, // <--- CAMBIO CLAVE: Permite que el modal se encoja
-    
-    margin: 20,
+    marginVertical: rh(2.5),
+    marginHorizontal: rw(5),
     backgroundColor: 'white',
     borderRadius: RFValue(12),
     padding: 0,

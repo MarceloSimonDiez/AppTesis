@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { responsiveFontSize as rf, responsiveWidth as rw, responsiveHeight as rh } from "react-native-responsive-dimensions";
-
+import { useTranslation } from 'react-i18next';
 // Función auxiliar (sin cambios)
 const generateNumbers = (n) =>
   Array.from({ length: n }, (_, i) => i.toString().padStart(2, '0'));
 
 export default function TimePicker({ onTimeChange }) {
+  const { t } = useTranslation();
   const [days, setDays] = useState('00');
   const [hours, setHours] = useState('00');
   const [minutes, setMinutes] = useState('00');
@@ -27,7 +28,7 @@ export default function TimePicker({ onTimeChange }) {
     <View style={styles.container}>
       {/* Columna para Días */}
       <View style={styles.column}>
-        <Text style={styles.labelPicker}>Días</Text>
+        <Text style={styles.labelPicker}>{t('common.dias')}</Text>
         {/* 1. Contenedor blanco añadido */}
         <View style={styles.pickerContainer}>
           <Picker
@@ -45,7 +46,7 @@ export default function TimePicker({ onTimeChange }) {
 
       {/* Columna para Hora */}
       <View style={styles.column}>
-        <Text style={styles.labelPicker}>Hora</Text>
+        <Text style={styles.labelPicker}>{t('common.horas')}</Text>
         {/* 2. Contenedor blanco añadido */}
         <View style={styles.pickerContainer}>
           <Picker
@@ -63,7 +64,7 @@ export default function TimePicker({ onTimeChange }) {
 
       {/* Columna para Minuto */}
       <View style={styles.column}>
-        <Text style={styles.labelPicker}>Minuto</Text>
+        <Text style={styles.labelPicker}>{t('common.minutos')}</Text>
         {/* 3. Contenedor blanco añadido */}
         <View style={styles.pickerContainer}>
           <Picker

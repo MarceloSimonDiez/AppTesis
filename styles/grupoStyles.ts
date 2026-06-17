@@ -61,7 +61,6 @@ const grupoStyles = StyleSheet.create({
   grupoContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: rw(3),
-    // padding: rw(4), // <-- Eliminamos el padding general
     marginBottom: rw(3),
     flexDirection: "row", // <-- Contendrá la [Barra] y el [Contenido]
     alignItems: "stretch", // <-- Clave para que la barra se estire verticalmente
@@ -80,7 +79,6 @@ const grupoStyles = StyleSheet.create({
   },
   colorBar: {
     width: rw(2.5), // Ancho de la barra de color
-    // No se necesita height, se estira por 'alignItems: stretch'
     borderTopLeftRadius: rw(3), // Redondea con el contenedor
     borderBottomLeftRadius: rw(3), // Redondea con el contenedor
   },

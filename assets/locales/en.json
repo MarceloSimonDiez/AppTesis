@@ -1,0 +1,146 @@
+{
+  "common": {
+    "agregar": "ADD",
+    "continuar": "CONTINUE",
+    "guardar": "SAVE",
+    "cancelar": "CANCEL",
+    "dia":"Day",
+    "dias": "Days",
+    "horas": "Hours",
+    "minutos": "Minutes",
+    "guardar_cambios": "SAVE CHANGES",
+    "crear_esquema": "CREATE SCHEME",
+    "confirmar_mayus": "CONFIRM",
+    "error": "Error"
+  },
+  "modales": {
+    "grupo_titulo_nuevo": "Create Group",
+    "grupo_titulo_editar": "Edit Group",
+    "grupo_nombre": "Group Name",
+    "grupo_descripcion": "Description",
+    "grupo_cantidad": "Number of Individuals",
+    "paciente_titulo": "Patient Data",
+    "paciente_nombre": "Name",
+    "paciente_edad": "Age",
+    "paciente_sexo": "Gender",
+    "paciente_peso": "Weight (kg)",
+    "paciente_descripcion": "Description",
+    "individuo_editar": "Edit Individual",
+    "individuo_agregar": "Add Individual",
+    "grupo_label": "Group:",
+    "identificador_label": "Identifier:",
+    "identificador_placeholder": "Enter identifier",
+    "edad_placeholder": "Enter age",
+    "sexo_placeholder": "Enter gender (M/F)",
+    "peso_placeholder": "Enter weight (kg)"
+  },
+  "paciente_item": {
+    "proximo_muestreo": "Next sampling in:",
+    "retardo": "DELAY:",
+    "completado": "Sampling completed!"
+  },
+"home": {
+  "welcome": "Welcome",
+  "subtitle": "Enter a name to start sampling",
+  "placeholder": "Study name",
+  "boton": "START"
+},
+"esquemas": {
+    "titulo_pantalla": "My Schemes",
+    "titulo": "Create New Scheme",
+    "nombre_placeholder": "Scheme name",
+    "confirmar": "CONFIRM AND EDIT",
+    "emptyState": {
+      "titulo": "No schemes created",
+      "subtitulo": "Press \"CREATE SCHEME\" to get started"
+    },
+    "editar_titulo": "Edit Scheme", 
+    "nombre_label": "SCHEME NAME",
+    "nombre_ejemplo": "Ex: Daytime Scheme",
+    "intervalos_label": "TIME INTERVALS",
+    "intervalos": {
+      "vacio_titulo": "No intervals created",
+      "vacio_subtitulo": "Press \"ADD\" to get started"
+    },
+    "seleccionar_tiempo": "SELECT TIME",
+    "alerta_calendar": "A Calendar event will be added on:",
+    "intervalo_singular": "interval",
+    "intervalo_plural": "intervals",
+    "toma": "Sampling",
+    "tiempo_label": "Time",
+    "error_nombre_vacio": "Scheme name cannot be empty."
+  },
+  "extracciones": {
+    "filtro_sin_iniciar": "NOT STARTED",
+    "filtro_curso": "IN PROGRESS",
+    "filtro_finalizado": "FINISHED",
+    "boton_exportar": "Export Data",
+    "estado_exportando": "Exporting...",
+    "muestra": "Sample",
+    "tiempo_restante": "time remaining",
+    "tiempo_retardo": "delay time",
+    "alerta_titulo": "Finish Sample",
+    "alerta_mensaje": "Are you sure you want to finish the current sample and return to start? Data will be lost if not exported!",
+    "alerta_exportar": "Export and Finish",
+    "channelName": "Interval Alarms",
+    "notif_titulo": "⏰ Last minute",
+    "notif_body_con_nombre": "Patient {{name}} is almost finished.",
+    "notif_body_sin_nombre": "One of your patients is almost finished.",
+    "si": "yes",
+    "no": "no",
+    "muestra_por_defecto": "Pharmacological Sample"
+  },
+  "grupos": {
+    "seccion_experimental": "EXPERIMENTAL SECTION",
+    "modal": {
+      "editar": "Edit Group",
+      "agregar": "Add Group"
+    },
+    "form": {
+      "nombre": "Name:",
+      "descripcion": "Description:",
+      "cantidad_individuos": "Number of Individuals:"
+    },
+    "emptyState": {
+      "titulo": "No groups created",
+      "subtitulo": "Press \"Add\" to get started"
+    }
+  },
+  "individuos": {
+      "titulo_seccion": "INDIVIDUALS",
+      "sin_nombre": "No name",
+      "detalles_ok": "Complete Details",
+      "editar_detalles": "Edit Details",
+      "vuelve_atras": "Go back and add groups first.",
+      "asignar_esquema": "Assign Scheme",
+      "titulo_singular": "Individual",
+      "sin_esquema": "No Scheme"
+    },
+    "exportar": {
+      "cabecera_nombre": "Name",
+      "cabecera_sexo": "Gender",
+      "cabecera_edad": "Age",
+      "cabecera_peso": "Weight",
+      "cabecera_descripcion": "Description",
+      "cabecera_grupo": "Group",
+      "cabecera_esquema": "Assigned Scheme",
+      "cabecera_hora_inicio": "Start Time",
+      "hoja_datos_generales": "General Data",
+      "sufijo_archivo": "Results",
+      "dialogo_compartir": "Share Results (.xlsx)",
+      "error_compartir": "Could not share the file.",
+      "nombre_por_defecto": "sample",
+      "sufijo_archivo1": "data_report",
+      "exito_titulo": "Success",
+      "exito_mensaje": "File \"{{nombre}}\" saved successfully.",
+      "cancelado_titulo": "Cancelled",
+      "cancelado_mensaje": "No directory was selected.",
+      "error_guardado_titulo": "Save Error",
+      "error_guardado_mensaje": "The file could not be saved. Sharing will be attempted as an alternative.",
+      "opciones_titulo": "Export Results",
+      "opciones_mensaje": "What do you want to do with the file?",
+      "opcion_compartir": "Share",
+      "opcion_guardar": "Save to Storage",
+      "error_generar": "Could not generate the Excel file."
+    }
+}

@@ -20,9 +20,9 @@ const styles = StyleSheet.create({
 
   // 2) Círculo con el “+”
   addGrupoButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: rh(5),
+    height: rh(5),
+    borderRadius: rh(2.5),
     backgroundColor: "#873B8C",
     alignItems: "center",
     justifyContent: "center",
@@ -30,8 +30,8 @@ const styles = StyleSheet.create({
 
   // 3) Texto “GRUPO”
   addGrupoText: {
-    marginLeft: 8,
-    fontSize: 18,
+    marginLeft: rw(2),
+    fontSize: rf(2.2),
     fontWeight: "bold",
     color: "#873B8C",
   },
@@ -46,21 +46,21 @@ const styles = StyleSheet.create({
   
   // (Header original)
   header: {
-    height: 60,
+    height: rh(8),
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: "#fff",
-    paddingHorizontal: 16, 
+    paddingHorizontal: rw(4), 
   },
 
   // (Main original)
   main: {
-    fontSize: 24,
+    fontSize: rf(2.4),
     fontWeight: "bold",
     color: "#873B8C",
-    paddingTop: 20,
-    paddingHorizontal: 16,
+    paddingTop: rh(2.5),
+    paddingHorizontal: rw(4),
   },
   
   // (fondoApp original, actualizado)
@@ -68,11 +68,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5', 
   },
-
-  // --- FIN DE ESTILOS ORIGINALES ---
-
-  // --- NUEVOS ESTILOS (AÑADIDOS) ---
-
   safeArea: {
     flex: 1,
     backgroundColor: '#F5F5F5', // Fondo claro
@@ -100,7 +95,7 @@ const styles = StyleSheet.create({
     paddingRight: 10, // Área táctil
   },
   headerTitle: {
-    fontSize: RFValue(18),
+    fontSize: rf(2.5),
     fontWeight: 'bold',
     color: '#333333',
   },
@@ -170,7 +165,7 @@ const styles = StyleSheet.create({
   cardSubtitle: { // <-- (Nombre del grupo)
     fontSize: rf(1.8),
     color: '#666',
-    marginBottom: 10,
+    marginBottom: rh(1),
   },
   cardInfoRow: { // <-- Fila para (Icono + Texto)
     flexDirection: 'row',
@@ -240,10 +235,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalView: {
-    margin: 20,
+    marginVertical: rh(2.5),
+    marginHorizontal: rw(5),
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 25,
+    borderRadius: rh(2.5),
+    paddingVertical: rh(3),
+    paddingHorizontal: rw(6),
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -256,22 +253,23 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: rf(2.2),
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: rh(0.5),
     color: '#333',
   },
   modalPacienteName: {
     fontSize: rf(1.8),
     color: '#666',
-    marginBottom: 15,
+    marginBottom: rh(1.5),
   },
   modalScrollView: {
     width: '100%',
   },
   esquemaOption: {
-    padding: 12,
-    marginVertical: 5,
+    paddingVertical: rh(1.5), 
+    paddingHorizontal: rw(3), 
+    marginVertical: rh(0.5),
     backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    borderRadius: rh(1),
     width: '100%',
   },
   esquemaOptionSelected: {
@@ -288,10 +286,11 @@ const styles = StyleSheet.create({
   },
   assignButton: {
       backgroundColor: '#03DAC6',
-      padding: 10,
-      borderRadius: 8,
+      paddingVertical: rh(1.2), 
+      paddingHorizontal: rw(3),
+      borderRadius: rh(1),
       alignItems: 'center',
-      marginTop: 5,
+      marginTop: rh(0.5),
   },
   assignButtonText: {
       color: 'white',
