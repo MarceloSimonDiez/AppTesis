@@ -337,7 +337,15 @@ const ExtraccionesScreen = () => {
     }
     // 2. Lógica para intervalos por horas/minutos
     else {
-      const totalSegundos = (Number(intervalo.tiempo.hours) || 0) * 3600 + (Number(intervalo.tiempo.minutes) || 0) * 60;
+      const getSeconds = (t) => ((Number(t.days) || 0) * 86400 + (Number(t.hours) || 0) * 3600 + (Number(t.minutes) || 0) * 60);
+      const currentSeconds = getSeconds(intervalo.tiempo);
+      let totalSegundos = currentSeconds;
+
+      if (intervalIndex > 0) {
+        const prevIntervalo = esquema.intervalos[intervalIndex - 1];
+        const prevSeconds = getSeconds(prevIntervalo.tiempo);
+        totalSegundos = Math.max(currentSeconds - prevSeconds, 0);
+      }
 
       let notifId = null;
 
