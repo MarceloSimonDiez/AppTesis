@@ -344,7 +344,10 @@ const ExtraccionesScreen = () => {
       if (intervalIndex > 0) {
         const prevIntervalo = esquema.intervalos[intervalIndex - 1];
         const prevSeconds = getSeconds(prevIntervalo.tiempo);
-        totalSegundos = Math.max(currentSeconds - prevSeconds, 0);
+        const currentDurationSeconds = Math.round((now - paciente.inicio_) / 1000);
+        totalSegundos = Math.max(currentSeconds - currentDurationSeconds, 0);
+      } else {
+        paciente.inicio_ = now; // Guardamos el inicio del paciente en el primer intervalo
       }
 
       let notifId = null;
